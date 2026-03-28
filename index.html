@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Inspector Pro V14.3 - Marker Fix</title>
+<title>Inspector Pro V14.4 - Full Restore</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
     :root { --rust: #bf4020; --ink: #1c1814; --green: #3d6b38; --light: #f4f4f4; }
@@ -37,7 +37,7 @@
     .btn-outline { background: white; color: var(--ink); border: 1px solid #ccc; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 5px; font-weight: bold; }
 
     #report-view { display: none; position: fixed; inset: 0; background: #333; z-index: 5000; overflow-y: auto; padding: 20px 0; }
-    #report-content { width: 210mm; margin: 0 auto; background: white; }
+    #report-content { width: 210mm; margin: 0 auto; background: white; min-height: 297mm; }
 
     @media print {
         body { overflow: visible !important; height: auto !important; }
@@ -51,7 +51,8 @@
         .photo-grid-rep { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .photo-grid-rep img { width: 100%; height: 220px; object-fit: cover; border-radius: 4px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 11px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        th { background: #f4f4f4; }
     }
 </style>
 </head>
@@ -59,17 +60,17 @@
 
 <div class="topbar">
     <div>
-        <span style="font-weight: 800; margin-right: 15px;">INSPECTOR PRO v14.3</span>
+        <span style="font-weight: 800; margin-right: 15px;">INSPECTOR PRO v14.4</span>
         <button onclick="openM('file-modal')" style="background:#444; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">📁 PROJECT</button>
     </div>
     <div>
         <button onclick="openM('project-modal')" style="background:none; color:white; border:1px solid white; padding:8px 12px; border-radius:6px; cursor:pointer; margin-right:10px;">DATA</button>
-        <button onclick="generateReport()" style="background: var(--green); color: white; border: none; padding: 9px 15px; border-radius: 6px; font-weight: bold; cursor: pointer;">RAPPORT</button>
+        <button onclick="generateReport()" style="background: var(--green); color: white; border: none; padding: 9px 15px; border-radius: 6px; font-weight: bold; cursor: pointer;">BEKIJK RAPPORT</button>
     </div>
 </div>
 
 <div class="sheet-bar" id="sheet-tabs">
-    <button onclick="document.getElementById('file-in').click()" style="padding: 8px 15px; background: black; color: white; border-radius: 6px; border:none; font-weight:bold; cursor: pointer;">+ GEVEL</button>
+    <button onclick="document.getElementById('file-in').click()" style="padding: 8px 15px; background: black; color: white; border-radius: 6px; border:none; font-weight:bold; cursor: pointer;">+ VOEG GEVEL TOE</button>
 </div>
 <input type="file" id="file-in" accept="image/*,application/pdf" style="display:none" onchange="handleFile(event)">
 
@@ -89,16 +90,37 @@
 
 <div class="footer-list" id="loc-list"></div>
 
+<div class="modal-bg" id="project-modal">
+    <div class="modal">
+        <h3>Projectgegevens & Logo's</h3>
+        <label>Rapport Titel</label><input type="text" id="p-title" value="INSPECTIERAPPORT HOUTROT">
+        <label>Opdrachtgever</label><input type="text" id="p-client">
+        <label>Projectlocatie</label><input type="text" id="p-name">
+        <label>Inspecteur</label><input type="text" id="p-inspector">
+        <label>Datum</label><input type="date" id="p-date">
+        
+        <label style="display:flex; align-items:center; gap:10px; background:#eee; padding:10px; border-radius:6px; cursor:pointer; margin-top:15px;">
+            <input type="checkbox" id="p-show-calc" style="width:auto; margin:0;"> Toon uren en materiaal in rapport
+        </label>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:15px;">
+            <div><label>Ons Logo</label><input type="file" onchange="readLogo(this, 'our')"></div>
+            <div><label>Logo Klant</label><input type="file" onchange="readLogo(this, 'client')"></div>
+        </div>
+        <button class="btn-main" onclick="closeM('project-modal')">GEGEVENS OPSLAAN</button>
+    </div>
+</div>
+
 <div class="modal-bg" id="loc-modal">
     <div class="modal">
-        <h3>Inspectiepunt Details</h3>
+        <h3>Inspectiepunt</h3>
         <label>Urgentie</label>
         <select id="m-color-sel">
             <option value="#ef4444">Rood - Direct herstel</option>
             <option value="#f59e0b">Oranje - Onderhoud</option>
             <option value="#3b82f6">Blauw - Monitoring</option>
         </select>
-        <label>Onderdeel</label><input type="text" id="m-naam" placeholder="Bijv. Onderdorpel">
+        <label>Onderdeel</label><input type="text" id="m-naam" placeholder="Onderdorpel, kozijnstijl etc.">
         <label>Maatregel</label>
         <select id="m-werkwijze">
             <option value="P2: Afdichten van naden en verbindingen (buiten)">P2: Afdichten van naden en verbindingen (buiten)</option>
@@ -110,9 +132,9 @@
             <option value="P8: Corrigeren van de omtrekspeling van draaiende delen">P8: Corrigeren van de omtrekspeling van draaiende delen</option>
             <option value="P9: Herstellen van oppervlaktebeschadigingen">P9: Herstellen van oppervlaktebeschadigingen</option>
             <option value="P10: Afdichten van verbindingen (binnen)">P10: Afdichten van verbindingen (binnen)</option>
-            <option value="P11: Herstellen van gedelamineerd geveltimmerwerk en haarscheuren">P11: Herstellen van gedelamineerd geveltimmerwerk en haarscheuren</option>
-            <option value="P12: Detailverbetering van de aansluiting van houten onderdorpels">P12: Detailverbetering van de aansluiting van houten onderdorpels</option>
-            <option value="C1: Herstellen van aangetast hout in houtconstructies">C1: Herstellen van aangetast hout in houtconstructies</option>
+            <option value="P11: Herstellen van gedelamineerd geveltimmerwerk en haarscheuren in onderdorpels">P11: Herstellen van gedelamineerd geveltimmerwerk</option>
+            <option value="P12: Detailverbetering van de aansluiting van houten onderdorpels">P12: Detailverbetering aansluiting</option>
+            <option value="C1: Herstellen van aangetast hout in houtconstructies">C1: Herstellen van aangetast hout</option>
             <option value="C2: Herstellen door middel van lamineren">C2: Herstellen door middel van lamineren</option>
             <option value="C4: Herstellen door deelvervanging">C4: Herstellen door deelvervanging</option>
             <option value="PG1: Vervangen van ondeugdelijke kitvoegen">PG1: Vervangen van ondeugdelijke kitvoegen</option>
@@ -129,24 +151,24 @@
         <input type="file" id="ph-in" multiple accept="image/*" style="display:none" onchange="addPhotos(event)">
         <div id="ph-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:10px;"></div>
         
-        <button class="btn-main" onclick="saveLoc()">OPSLAAN PUNT</button>
+        <button class="btn-main" onclick="saveLoc()">PUNT OPSLAAN</button>
         <button onclick="deleteLoc()" style="color:red; background:none; border:none; width:100%; margin-top:10px; cursor:pointer;">VERWIJDER PUNT</button>
     </div>
 </div>
 
 <div class="modal-bg" id="file-modal"><div class="modal"><h3>Project Opslag</h3><button class="btn-main" onclick="exportProject()">DOWNLOAD .JSON</button><label>Importeer .JSON</label><input type="file" accept=".json" onchange="importProject(event)"><button class="btn-outline" onclick="closeM('file-modal')">SLUITEN</button></div></div>
-<div class="modal-bg" id="project-modal"><div class="modal"><h3>Project Instellingen</h3><label>Titel</label><input type="text" id="p-title" value="INSPECTIERAPPORT HOUTROT"><label>Opdrachtgever</label><input type="text" id="p-client"><label>Projectlocatie</label><input type="text" id="p-name"><label>Inspecteur</label><input type="text" id="p-inspector"><label>Datum</label><input type="date" id="p-date"><button class="btn-main" onclick="closeM('project-modal')">OPSLAAN</button></div></div>
 
 <div id="report-view">
     <div class="report-ui" style="width:210mm; margin:10px auto; display:flex; gap:10px;">
         <button onclick="document.getElementById('report-view').style.display='none'" style="flex:1; padding:10px;">TERUG</button>
-        <button onclick="window.print()" style="flex:2; padding:10px; background:var(--green); color:white; border:none; font-weight:bold;">PDF PRINTEN</button>
+        <button onclick="window.print()" style="flex:2; padding:10px; background:var(--green); color:white; border:none; font-weight:bold;">AFDRUKKEN / PDF</button>
     </div>
     <div id="report-content"></div>
 </div>
 
 <script>
 let sheets = [], activeIdx = -1, mode = 'mark', scale = 1, activeDrag = null;
+let logos = { our: null, client: null };
 let curPh = [], curId = null, curX = 0, curY = 0;
 const mCvs = document.getElementById('main-canvas'), oCvs = document.getElementById('overlay-canvas');
 const mCtx = mCvs.getContext('2d'), oCtx = oCvs.getContext('2d');
@@ -154,7 +176,7 @@ const mCtx = mCvs.getContext('2d'), oCtx = oCvs.getContext('2d');
 function openM(id) { document.getElementById(id).classList.add('open'); }
 function closeM(id) { document.getElementById(id).classList.remove('open'); autoSave(); }
 
-// --- ESSENTIAL CORE FIX ---
+// --- LOGIC: INTERACTION & MARKING ---
 function handleInteraction(e) {
     if(activeIdx === -1) return;
     const r = oCvs.getBoundingClientRect();
@@ -162,19 +184,11 @@ function handleInteraction(e) {
     const y = ((e.touches ? e.touches[0].clientY : e.clientY) - r.top) / scale;
 
     if(e.type === 'mousedown' || e.type === 'touchstart') {
-        // Check of we op een bestaand punt klikken
         const hit = sheets[activeIdx].locs.find(l => Math.hypot(l.x - x, l.y - y) < 20/scale);
-        
-        if(mode === 'drag' && hit) { 
-            activeDrag = hit; 
-        } else if(mode === 'mark') {
-            if(hit) {
-                openLoc(hit); // Open bestaand punt
-            } else {
-                // NIEUW PUNT: zet coördinaten vast en open modal
-                curX = x; curY = y;
-                openLoc(null, x, y);
-            }
+        if(mode === 'drag' && hit) { activeDrag = hit; }
+        else if(mode === 'mark') {
+            if(hit) openLoc(hit);
+            else openLoc(null, x, y);
         }
     } else if((e.type === 'mousemove' || e.type === 'touchmove') && activeDrag) {
         activeDrag.x = x; activeDrag.y = y; redraw();
@@ -183,62 +197,69 @@ function handleInteraction(e) {
 
 function openLoc(l, x, y) {
     curId = l ? l.id : null; 
-    // Als het een nieuw punt is, gebruik de geklikte x,y. Als het bestaand is, gebruik de x,y van het punt.
-    curX = l ? l.x : x; 
-    curY = l ? l.y : y;
+    curX = l ? l.x : x; curY = l ? l.y : y;
     curPh = l ? [...l.fotos] : [];
-    
     document.getElementById('m-naam').value = l ? l.naam : "";
     document.getElementById('m-desc').value = l ? l.desc : "";
     document.getElementById('m-uren').value = l ? l.uren : 0;
     document.getElementById('m-mat').value = l ? l.mat : 0;
     document.getElementById('m-werkwijze').value = l ? l.werkwijze : "P2: Afdichten van naden en verbindingen (buiten)";
     document.getElementById('m-color-sel').value = l ? l.color : "#ef4444";
-    
-    renderPh();
-    openM('loc-modal');
+    renderPh(); openM('loc-modal');
 }
 
 function saveLoc() {
-    if(activeIdx === -1) return;
     const s = sheets[activeIdx];
-    
-    const d = { 
-        id: curId || Date.now(), 
-        x: curX, 
-        y: curY, 
-        naam: document.getElementById('m-naam').value || "Punt", 
-        desc: document.getElementById('m-desc').value, 
-        werkwijze: document.getElementById('m-werkwijze').value, 
-        uren: parseFloat(document.getElementById('m-uren').value) || 0,
-        mat: parseFloat(document.getElementById('m-mat').value) || 0, 
-        color: document.getElementById('m-color-sel').value, 
-        fotos: [...curPh] 
-    };
-    
-    if(curId) {
-        s.locs = s.locs.map(l => l.id === curId ? d : l);
-    } else {
-        s.locs.push(d);
-    }
-    
-    closeM('loc-modal');
-    redraw();
-    renderList();
-    autoSave();
+    const d = { id: curId || Date.now(), x: curX, y: curY, 
+        naam: document.getElementById('m-naam').value || "Punt", desc: document.getElementById('m-desc').value, 
+        werkwijze: document.getElementById('m-werkwijze').value, uren: parseFloat(document.getElementById('m-uren').value) || 0,
+        mat: parseFloat(document.getElementById('m-mat').value) || 0, color: document.getElementById('m-color-sel').value, fotos: [...curPh] };
+    if(curId) s.locs = s.locs.map(l => l.id === curId ? d : l);
+    else s.locs.push(d);
+    closeM('loc-modal'); redraw(); renderList(); autoSave();
 }
 
-// --- REST VAN DE LOGICA ---
+// --- LOGO HANDLER ---
+function readLogo(input, type) {
+    const reader = new FileReader();
+    reader.onload = (e) => { logos[type] = e.target.result; autoSave(); };
+    reader.readAsDataURL(input.files[0]);
+}
+
+// --- CORE SYSTEM ---
 function redraw() {
     oCtx.clearRect(0,0,oCvs.width,oCvs.height);
-    if(activeIdx !== -1) {
-        sheets[activeIdx].locs.forEach((l, i) => {
-            oCtx.beginPath(); oCtx.arc(l.x, l.y, 18/scale, 0, Math.PI*2);
-            oCtx.fillStyle = l.color; oCtx.fill();
-            oCtx.fillStyle="white"; oCtx.font=`bold ${14/scale}px Arial`; oCtx.textAlign="center";
-            oCtx.fillText(i+1, l.x, l.y+(5/scale));
-        });
-    }
+    if(activeIdx !== -1) sheets[activeIdx].locs.forEach((l, i) => {
+        oCtx.beginPath(); oCtx.arc(l.x, l.y, 18/scale, 0, Math.PI*2); oCtx.fillStyle = l.color; oCtx.fill();
+        oCtx.fillStyle="white"; oCtx.font=`bold ${14/scale}px Arial`; oCtx.textAlign="center"; oCtx.fillText(i+1, l.x, l.y+(5/scale));
+    });
+}
+
+function renderList() {
+    const l = document.getElementById('loc-list'); l.innerHTML = '';
+    if(activeIdx !== -1) sheets[activeIdx].locs.forEach((loc, i) => {
+        l.innerHTML += `<div class="loc-row" onclick="openLocById(${loc.id})"><span><b>${i+1}.</b> ${loc.naam}</span> <span>${loc.werkwijze.split(':')[0]}</span></div>`;
+    });
+}
+function openLocById(id) { openLoc(sheets[activeIdx].locs.find(l => l.id === id)); }
+
+async function handleFile(e) {
+    const file = e.target.files[0]; if(!file) return;
+    const r = new FileReader();
+    r.onload = async (ev) => {
+        let data;
+        if(file.type === 'application/pdf') {
+            const pdf = await pdfjsLib.getDocument({data: ev.target.result}).promise;
+            const page = await pdf.getPage(1);
+            const vp = page.getViewport({scale: 2.0});
+            const tCvs = document.createElement('canvas'); tCvs.width = vp.width; tCvs.height = vp.height;
+            await page.render({canvasContext: tCvs.getContext('2d'), viewport: vp}).promise;
+            data = tCvs.toDataURL('image/jpeg', 0.8);
+        } else data = ev.target.result;
+        sheets.push({ name: file.name.split('.')[0], locs: [], imgData: data });
+        switchSheet(sheets.length - 1);
+    };
+    file.type === 'application/pdf' ? r.readAsArrayBuffer(file) : r.readAsDataURL(file);
 }
 
 function switchSheet(idx) {
@@ -248,6 +269,17 @@ function switchSheet(idx) {
         mCtx.drawImage(img, 0, 0); scale = (document.querySelector('.viewport').clientWidth - 40) / img.width;
         updateTabs(); renderList(); redraw(); zoom(1);
     }; img.src = sheets[idx].imgData;
+}
+
+function updateTabs() {
+    const bar = document.getElementById('sheet-tabs');
+    bar.querySelectorAll('.sheet-tab').forEach(t => t.remove());
+    sheets.forEach((s, i) => {
+        const t = document.createElement('button');
+        t.className = `sheet-tab ${i===activeIdx?'active':''}`;
+        t.textContent = s.name; t.onclick = () => switchSheet(i);
+        bar.appendChild(t);
+    });
 }
 
 function addPhotos(e) {
@@ -263,61 +295,46 @@ function deleteLoc() { sheets[activeIdx].locs = sheets[activeIdx].locs.filter(l 
 function setMode(m) { mode = m; document.querySelectorAll('.controls .btn').forEach(b=>b.classList.remove('active')); document.getElementById('m-'+m).classList.add('active'); }
 function zoom(f) { scale *= f; document.getElementById('canvas-wrap').style.transform = `scale(${scale})`; }
 
-async function handleFile(e) {
-    const file = e.target.files[0]; if(!file) return;
-    const r = new FileReader();
-    r.onload = async (ev) => {
-        let data;
-        if(file.type === 'application/pdf') {
-            const pdf = await pdfjsLib.getDocument({data: ev.target.result}).promise;
-            const page = await pdf.getPage(1);
-            const vp = page.getViewport({scale: 2.0});
-            const tCvs = document.createElement('canvas'); tCvs.width = vp.width; tCvs.height = vp.height;
-            await page.render({canvasContext: tCvs.getContext('2d'), viewport: vp}).promise;
-            data = tCvs.toDataURL('image/jpeg', 0.7);
-        } else data = ev.target.result;
-        sheets.push({ name: file.name.split('.')[0], locs: [], imgData: data });
-        switchSheet(sheets.length - 1);
-    };
-    file.type === 'application/pdf' ? r.readAsArrayBuffer(file) : r.readAsDataURL(file);
+// --- STORAGE ---
+function autoSave() {
+    const data = { sheets, logos, meta: {
+        title: document.getElementById('p-title').value, client: document.getElementById('p-client').value,
+        project: document.getElementById('p-name').value, inspector: document.getElementById('p-inspector').value,
+        date: document.getElementById('p-date').value, showCalc: document.getElementById('p-show-calc').checked
+    }};
+    localStorage.setItem('inspector_v14_4', JSON.stringify(data));
 }
-
-function updateTabs() {
-    const bar = document.getElementById('sheet-tabs');
-    bar.querySelectorAll('.sheet-tab').forEach(t => t.remove());
-    sheets.forEach((s, i) => {
-        const t = document.createElement('button');
-        t.className = `sheet-tab ${i===activeIdx?'active':''}`;
-        t.textContent = s.name; t.onclick = () => switchSheet(i);
-        bar.appendChild(t);
-    });
-}
-
-function renderList() {
-    const l = document.getElementById('loc-list'); l.innerHTML = '';
-    if(activeIdx !== -1) sheets[activeIdx].locs.forEach((loc, i) => {
-        l.innerHTML += `<div class="loc-row" onclick="openLocById(${loc.id})"><span><b>${i+1}.</b> ${loc.naam}</span> <span>${loc.werkwijze.split(':')[0]}</span></div>`;
-    });
-}
-function openLocById(id) { openLoc(sheets[activeIdx].locs.find(l => l.id === id)); }
-
-function autoSave() { localStorage.setItem('inspector_v14_3', JSON.stringify({ sheets, meta: { title: document.getElementById('p-title').value, client: document.getElementById('p-client').value, project: document.getElementById('p-name').value, inspector: document.getElementById('p-inspector').value, date: document.getElementById('p-date').value }})); }
 function loadData() {
-    const saved = localStorage.getItem('inspector_v14_3'); if(!saved) return;
-    const d = JSON.parse(saved); sheets = d.sheets || [];
-    if(d.meta) { document.getElementById('p-title').value = d.meta.title; document.getElementById('p-client').value = d.meta.client; document.getElementById('p-name').value = d.meta.project; document.getElementById('p-inspector').value = d.meta.inspector; document.getElementById('p-date').value = d.meta.date; }
+    const saved = localStorage.getItem('inspector_v14_4'); if(!saved) return;
+    const d = JSON.parse(saved); sheets = d.sheets || []; logos = d.logos || {our:null, client:null};
+    if(d.meta) {
+        document.getElementById('p-title').value = d.meta.title; document.getElementById('p-client').value = d.meta.client;
+        document.getElementById('p-name').value = d.meta.project; document.getElementById('p-inspector').value = d.meta.inspector;
+        document.getElementById('p-date').value = d.meta.date; document.getElementById('p-show-calc').checked = d.meta.showCalc;
+    }
     if(sheets.length > 0) switchSheet(0);
 }
 
-function exportProject() { const b = new Blob([localStorage.getItem('inspector_v14_3')], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `Project.json`; a.click(); }
-function importProject(e) { const r = new FileReader(); r.onload = (ev) => { localStorage.setItem('inspector_v14_3', ev.target.result); location.reload(); }; r.readAsText(e.target.files[0]); }
-
-// --- REPORT ---
+// --- REPORT GENERATOR ---
 async function generateReport() {
     const container = document.getElementById('report-content');
-    container.innerHTML = "Laden...";
+    container.innerHTML = "<p style='padding:40px;'>Rapport genereren...</p>";
     document.getElementById('report-view').style.display = 'block';
-    let html = `<div class="cover-page"><h1>${document.getElementById('p-title').value}</h1><h2>${document.getElementById('p-name').value}</h2><p>${document.getElementById('p-client').value}</p></div>`;
+    const p = { title: document.getElementById('p-title').value, client: document.getElementById('p-client').value, project: document.getElementById('p-name').value, inspector: document.getElementById('p-inspector').value, date: document.getElementById('p-date').value, showCalc: document.getElementById('p-show-calc').checked };
+
+    let html = `<div class="cover-page">
+        <div>${logos.our ? `<img src="${logos.our}" style="max-height:80px;">` : ''}</div>
+        <div>
+            <h1 style="font-size:36pt;">${p.title}</h1>
+            ${logos.client ? `<img src="${logos.client}" style="max-height:100px; margin: 20px 0;">` : ''}
+            <h2 style="font-size:22pt; color:var(--rust);">${p.project}</h2>
+        </div>
+        <div style="text-align:left; border-top:2px solid var(--ink); padding-top:10mm;">
+            <p><b>Opdrachtgever:</b> ${p.client}</p><p><b>Inspecteur:</b> ${p.inspector}</p><p><b>Datum:</b> ${p.date}</p>
+        </div>
+    </div>`;
+
+    let summary = {};
     for(let s of sheets) {
         const screenshot = await new Promise(res => {
             const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const img = new Image();
@@ -326,18 +343,37 @@ async function generateReport() {
                 s.locs.forEach((l, idx) => {
                     ctx.beginPath(); ctx.arc(l.x, l.y, 25, 0, Math.PI*2); ctx.fillStyle = l.color; ctx.fill();
                     ctx.fillStyle="white"; ctx.font="bold 26px Arial"; ctx.textAlign="center"; ctx.fillText(idx+1, l.x, l.y+10);
+                    summary[l.werkwijze] = summary[l.werkwijze] || {c:0, u:0, m:0};
+                    summary[l.werkwijze].c++; summary[l.werkwijze].u += l.uren; summary[l.werkwijze].m += l.mat;
                 });
                 res(canvas.toDataURL('image/jpeg', 0.8));
             }; img.src = s.imgData;
         });
-        html += `<div class="report-page page-break"><h2>Gevel: ${s.name}</h2><img src="${screenshot}" style="width:100%">`;
+        
+        html += `<div class="report-page page-break"><h2 style="background:var(--ink); color:white; padding:10px;">Gevel: ${s.name}</h2><img src="${screenshot}" style="width:100%; border:1px solid #ccc; margin:10px 0;">`;
         s.locs.forEach((l, idx) => {
-            html += `<div class="loc-block" style="--bc:${l.color}"><h3>${idx+1}. ${l.naam}</h3><p>${l.werkwijze}</p><div class="photo-grid-rep">${l.fotos.map(f=>`<img src="${f}">`).join('')}</div></div>`;
+            html += `<div class="loc-block" style="--bc:${l.color}"><h3>${idx+1}. ${l.naam}</h3><p><b>Maatregel:</b> ${l.werkwijze}</p>
+            ${p.showCalc ? `<p style="color:var(--rust); font-size:12px;"><b>Calculatie:</b> ${l.uren} uren | € ${l.mat} materiaal</p>` : ''}
+            <p><b>Opmerking:</b> ${l.desc || '-'}</p><div class="photo-grid-rep">${l.fotos.map(f=>`<img src="${f}">`).join('')}</div></div>`;
         });
         html += `</div>`;
     }
+
+    // Samenvattingstabel
+    html += `<div class="report-page page-break"><h2>SAMENVATTING MAATREGELEN</h2><table><thead><tr><th>Code</th><th>Omschrijving</th><th style="text-align:center;">Aantal</th>${p.showCalc ? `<th>Uren</th><th>Materiaal</th>` : ''}</tr></thead><tbody>`;
+    let tU=0, tM=0, tC=0;
+    Object.keys(summary).sort().forEach(k => {
+        tU += summary[k].u; tM += summary[k].m; tC += summary[k].c;
+        html += `<tr><td><b>${k.split(':')[0]}</b></td><td>${k.split(': ')[1]}</td><td style="text-align:center;">${summary[k].c}</td>${p.showCalc ? `<td>${summary[k].u}</td><td>€ ${summary[k].m}</td>` : ''}</tr>`;
+    });
+    if(p.showCalc) html += `<tr style="background:#eee;"><td></td><td><b>TOTAAL</b></td><td style="text-align:center;"><b>${tC}</b></td><td><b>${tU}</b></td><td><b>€ ${tM}</b></td></tr>`;
+    html += `</tbody></table></div>`;
+
     container.innerHTML = html;
 }
+
+function exportProject() { const b = new Blob([localStorage.getItem('inspector_v14_4')], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `Project_${document.getElementById('p-client').value || 'Export'}.json`; a.click(); }
+function importProject(e) { const r = new FileReader(); r.onload = (ev) => { localStorage.setItem('inspector_v14_4', ev.target.result); location.reload(); }; r.readAsText(e.target.files[0]); }
 
 oCvs.addEventListener('mousedown', handleInteraction);
 oCvs.addEventListener('touchstart', (e) => { e.preventDefault(); handleInteraction(e); }, {passive:false});
