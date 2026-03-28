@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Houtrot Inspector Multi-Sheet</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Cabinet+Grotesk:wght@400;700;800&display=swap');
+:root { --bg: #f2ede6; --surface: #ffffff; --ink: #1c1814; --border: #d8d0c4; --rust: #bf4020; --amber: #c87800; --green: #3d6b38; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Cabinet Grotesk', sans-serif; background: var(--bg); color: var(--ink); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* UI Elements */
+.topbar { background: var(--ink); color: #f2ede6; padding: 0 1rem; height: 50px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.topbar h1 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+
+.sheet-bar { background: #e8e2d9; padding: 5px 10px; display: flex; gap: 10px; overflow-x: auto; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sheet-tab { padding: 6px 12px; background: #d8d0c4; border-radius: 4px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.sheet-tab.active { background: var(--rust); color: white; }
+
+.main-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+#screen-mark { flex: 1; display: grid; grid-template-rows: 1fr 150px; overflow: hidden; }
+
+.canvas-col { overflow: auto; background: #c8c0b4; position: relative; display: flex; align-items: flex-start; justify-content: center; }
+.canvas-wrap { position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.2); }
+#pdf-canvas { display: block; }
+#overlay-canvas { position: absolute; top: 0; left: 0; touch-action: none; }
+
+.mark-controls { position: absolute; bottom: 10px; right: 10px; display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+.ctrl-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--ink); color: white; border: none; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+
+.side-col { background: white; border-top: 2px solid var(--border); overflow-y: auto; padding: 10px; }
+.loc-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.8rem; }
+
+/* Modals */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal { background: white; width: 90%; max-height: 90vh; border-radius: 12px; padding: 20px; overflow-y: auto; }
+.fg { margin-bottom: 15px; }
+.fg label { display: block; font-size: 0.7rem; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+.fg input, .fg select, .fg textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn { padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.btn-save { background: var(--rust); color: white; }
+.btn-del { background: #eee; color: #cc0000; }
+
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.thumb { aspect-ratio: 1; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <h1>Houtrot Inspector Pro</h1>
+    <button onclick="goReport()" style="background:var(--green); color:white; border:none; padding:5px 12px; border-radius:4px; font-weight:bold; font-size:0.7rem;">RAPPORT</button>
+</div>
+
+<div class="sheet-bar" id="sheet-bar">
+    <div class="sheet-tab" onclick="document.getElementById('file-in').click()">+ Nieuwe Tekening</div>
+</div>
+<input type="file" id="file-in" accept="image/*,application/pdf" style="display:none" onchange="addNewSheet(event)">
+
+<div class="main-container">
+    <div id="screen-mark">
+        <div class="canvas-col" id="scroll-container">
+            <div class="canvas-wrap" id="canvas-wrap">
+                <canvas id="pdf-canvas"></canvas>
+                <canvas id="overlay-canvas"></canvas>
+            </div>
+            <div class="mark-controls">
+                <button class="ctrl-btn" onclick="doZoom(1.2)">➕</button>
+                <button class="ctrl-btn" onclick="doZoom(0.8)">➖</button>
+                <button class="ctrl-btn" id="pan-toggle" onclick="togglePan()">✋</button>
+            </div>
+        </div>
+        <div class="side-col" id="loc-list">
+            <p style="text-align:center; color:#999; margin-top:20px;">Upload een tekening om te beginnen.</p>
+        </div>
+    </div>
+</div>
+
+<div class="modal-bg" id="modal-bg">
+    <div class="modal">
+        <h2 id="m-title" style="margin-bottom:15px">Locatie Details</h2>
+        <div class="fg"><label>Naam</label><input type="text" id="m-naam"></div>
+        <div class="fg"><label>Ernst</label><select id="m-ernst"><option value="licht">Licht</option><option value="matig">Matig</option><option value="ernstig">Ernstig</option></select></div>
+        <div class="fg"><label>Omschrijving</label><textarea id="m-desc" rows="3"></textarea></div>
+        <div class="fg">
+            <label>Foto's</label>
+            <button onclick="document.getElementById('photo-in').click()" style="width:100%; padding:10px; background:#f0f0f0; border:1px solid #ccc; border-radius:8px;">📷 Foto toevoegen</button>
+            <input type="file" id="photo-in" accept="image/*" multiple style="display:none" onchange="addPhotos(event)">
+            <div class="photo-grid" id="photo-grid"></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-del" id="btn-delete" onclick="deleteCurrentLoc()">Verwijder</button>
+            <button class="btn btn-save" onclick="saveLocation()">Opslaan</button>
+        </div>
+        <button onclick="closeModal()" style="width:100%; margin-top:15px; border:none; background:none; color:#666;">Sluiten</button>
+    </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let sheets = []; // Bevat { name, img, pdfData, locs: [], scale: 1 }
+let activeSheetIdx = -1;
+let currentLocId = null; 
+let isPanning = false;
+let pendPhotos = [];
+
+const pCvs = document.getElementById('pdf-canvas'), oCvs = document.getElementById('overlay-canvas');
+const pCtx = pCvs.getContext('2d'), oCtx = oCvs.getContext('2d');
+
+async function addNewSheet(ev) {
+    const file = ev.target.files[0];
+    if (!file) return;
+
+    const sheet = { name: file.name, locs: [], scale: 1, type: file.type, data: null };
+    const reader = new FileReader();
+
+    reader.onload = async e => {
+        sheet.data = e.target.result;
+        sheets.push(sheet);
+        activeSheetIdx = sheets.length - 1;
+        renderSheetTabs();
+        loadSheet(activeSheetIdx);
+    };
+
+    if (file.type === 'application/pdf') reader.readAsArrayBuffer(file);
+    else reader.readAsDataURL(file);
+}
+
+function renderSheetTabs() {
+    const bar = document.getElementById('sheet-bar');
+    bar.innerHTML = '<div class="sheet-tab" onclick="document.getElementById(\'file-in\').click()">+ Nieuwe Tekening</div>';
+    sheets.forEach((s, i) => {
+        const tab = document.createElement('div');
+        tab.className = `sheet-tab ${i === activeSheetIdx ? 'active' : ''}`;
+        tab.textContent = s.name.substring(0, 15);
+        tab.onclick = () => loadSheet(i);
+        bar.appendChild(tab);
+    });
+}
+
+async function loadSheet(idx) {
+    activeSheetIdx = idx;
+    const s = sheets[idx];
+    renderSheetTabs();
+
+    if (s.type === 'application/pdf') {
+        const pdf = await pdfjsLib.getDocument({data: s.data}).promise;
+        const page = await pdf.getPage(1);
+        const vp = page.getViewport({scale: s.scale * 1.5});
+        setCanvasSize(vp.width, vp.height);
+        await page.render({canvasContext: pCtx, viewport: vp}).promise;
+    } else {
+        const img = new Image();
+        img.onload = () => {
+            const baseScale = window.innerWidth / img.width;
+            setCanvasSize(img.width * s.scale * baseScale, img.height * s.scale * baseScale);
+            pCtx.drawImage(img, 0, 0, pCvs.width, pCvs.height);
+        };
+        img.src = s.data;
+    }
+    redraw();
+    renderLocList();
+}
+
+function setCanvasSize(w, h) { oCvs.width = pCvs.width = w; oCvs.height = pCvs.height = h; }
+
+function togglePan() {
+    isPanning = !isPanning;
+    document.getElementById('pan-toggle').style.background = isPanning ? 'var(--rust)' : 'var(--ink)';
+}
+
+// TOUCH LOGICA VOOR MARKEREN & BEWERKEN
+oCvs.addEventListener('touchstart', e => {
+    if (isPanning) return;
+    const r = oCvs.getBoundingClientRect();
+    const t = e.touches[0];
+    const x = (t.clientX - r.left) * (oCvs.width / r.width);
+    const y = (t.clientY - r.top) * (oCvs.height / r.height);
+
+    // Check of we op een bestaand punt klikken (30px radius)
+    const existing = sheets[activeSheetIdx].locs.find(l => Math.hypot(l.x - x, l.y - y) < 25);
+    if (existing) openModal(existing);
+    else openModal(null, x, y);
+}, {passive: false});
+
+function openModal(loc, x, y) {
+    pendPhotos = loc ? [...loc.fotos] : [];
+    currentLocId = loc ? loc.id : null;
+    
+    document.getElementById('m-naam').value = loc ? loc.naam : 'Punt ' + (sheets[activeSheetIdx].locs.length + 1);
+    document.getElementById('m-ernst').value = loc ? loc.ernst : 'licht';
+    document.getElementById('m-desc').value = loc ? loc.desc : '';
+    document.getElementById('btn-delete').style.display = loc ? 'block' : 'none';
+    
+    if (!loc) { currentX = x; currentY = y; }
+    renderPhotoGrid();
+    document.getElementById('modal-bg').classList.add('open');
+}
+
+function saveLocation() {
+    const s = sheets[activeSheetIdx];
+    const data = {
+        id: currentLocId || Date.now(),
+        x: currentLocId ? s.locs.find(l=>l.id===currentLocId).x : currentX,
+        y: currentLocId ? s.locs.find(l=>l.id===currentLocId).y : currentY,
+        naam: document.getElementById('m-naam').value,
+        ernst: document.getElementById('m-ernst').value,
+        desc: document.getElementById('m-desc').value,
+        fotos: [...pendPhotos]
+    };
+
+    if (currentLocId) s.locs = s.locs.map(l => l.id === currentLocId ? data : l);
+    else s.locs.push(data);
+    
+    closeModal(); redraw(); renderLocList();
+}
+
+function deleteCurrentLoc() {
+    sheets[activeSheetIdx].locs = sheets[activeSheetIdx].locs.filter(l => l.id !== currentLocId);
+    closeModal(); redraw(); renderLocList();
+}
+
+function addPhotos(ev) {
+    [...ev.target.files].forEach(f => {
+        const r = new FileReader();
+        r.onload = e => {
+            pendPhotos.push(e.target.result);
+            renderPhotoGrid();
+        };
+        r.readAsDataURL(f);
+    });
+}
+
+function renderPhotoGrid() {
+    const g = document.getElementById('photo-grid');
+    g.innerHTML = '';
+    pendPhotos.forEach(src => { g.innerHTML += `<div class="thumb"><img src="${src}"></div>`; });
+}
+
+function doZoom(f) {
+    sheets[activeSheetIdx].scale *= f;
+    loadSheet(activeSheetIdx);
+}
+
+function redraw() {
+    oCtx.clearRect(0,0,oCvs.width,oCvs.height);
+    sheets[activeSheetIdx].locs.forEach((l, i) => {
+        oCtx.beginPath(); oCtx.arc(l.x, l.y, 15, 0, Math.PI*2);
+        oCtx.fillStyle = l.ernst === 'ernstig' ? '#bf4020' : (l.ernst === 'matig' ? '#c87800' : '#3d6b38');
+        oCtx.fill(); oCtx.strokeStyle = 'white'; oCtx.lineWidth = 2; oCtx.stroke();
+        oCtx.fillStyle = 'white'; oCtx.font = 'bold 12px Arial'; oCtx.textAlign = 'center';
+        oCtx.fillText(i+1, l.x, l.y + 4);
+    });
+}
+
+function renderLocList() {
+    const list = document.getElementById('loc-list');
+    list.innerHTML = '';
+    sheets[activeSheetIdx].locs.forEach((l, i) => {
+        list.innerHTML += `<div class="loc-card" onclick='openModal(${JSON.stringify(l)})'>
+            <div style="background:${l.ernst==='ernstig'?'#bf4020':(l.ernst==='matig'?'#c87800':'#3d6b38')}; color:white; width:20px; height:20px; border-radius:50%; text-align:center; font-size:0.7rem;">${i+1}</div>
+            <b>${l.naam}</b>
+        </div>`;
+    });
+}
+
+function closeModal() { document.getElementById('modal-bg').classList.remove('open'); }
+
+function goReport() {
+    let reportHtml = `<html><body style="font-family:sans-serif; padding:30px;"><h1>Inspectierapport</h1>`;
+    
+    sheets.forEach(s => {
+        // Maak tijdelijk canvas voor de gemarkeerde gevel
+        const tempCvs = document.createElement('canvas');
+        tempCvs.width = pCvs.width; tempCvs.height = pCvs.height;
+        const tCtx = tempCvs.getContext('2d');
+        // Hier simuleren we de gevel (omdat we niet alle canvases tegelijk hebben)
+        // In een echte app zouden we thumbnails opslaan
+        reportHtml += `<h2 style="border-top:2px solid #000; padding-top:20px;">Gevel: ${s.name}</h2>`;
+        s.locs.forEach((l, i) => {
+            reportHtml += `<div style="margin-bottom:20px;">
+                <h3>${i+1}. ${l.naam} (${l.ernst})</h3>
+                <p>${l.desc}</p>
+                <div style="display:flex; gap:10px;">${l.fotos.map(f => `<img src="${f}" style="width:200px;">`).join('')}</div>
+            </div>`;
+        });
+    });
+
+    reportHtml += `<script>window.onload=()=>window.print()<\/script></body></html>`;
+    const win = window.open();
+    win.document.write(reportHtml);
+    win.document.close();
+}
+</script>
+</body>
+</html>
