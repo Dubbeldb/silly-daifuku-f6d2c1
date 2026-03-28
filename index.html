@@ -3,78 +3,82 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Inspector Pro V14.8 - Tab Fix</title>
+<title>Inspector Pro V14.9 - Fixed A4 Layout</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
     :root { --rust: #bf4020; --ink: #1c1814; --green: #3d6b38; --light: #f4f4f4; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; background: var(--light); overflow: hidden; }
     
+    /* UI STYLING */
     .topbar { background: var(--ink); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
     .sheet-bar { background: #e0e0e0; padding: 10px; display: flex; gap: 8px; overflow-x: auto; border-bottom: 1px solid #ccc; min-height: 50px; align-items: center; }
     .sheet-tab { padding: 8px 15px; background: #bbb; border-radius: 6px; font-size: 11px; font-weight: bold; border: none; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
     .sheet-tab.active { background: var(--rust); color: white; }
-    .rename-btn { background: rgba(0,0,0,0.1); border: none; color: inherit; border-radius: 3px; cursor: pointer; padding: 2px 6px; font-size: 12px; }
-    .rename-btn:hover { background: rgba(0,0,0,0.2); }
+    .rename-btn { background: rgba(0,0,0,0.1); border: none; border-radius: 3px; cursor: pointer; padding: 2px 6px; }
 
     .viewport { flex: 1; position: relative; overflow: auto; background: #555; }
     #canvas-wrap { position: relative; display: inline-block; background: white; transform-origin: 0 0; margin: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
-    canvas { display: block; }
     #overlay-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
 
     .controls { position: fixed; bottom: 160px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; }
-    .btn { width: 50px; height: 50px; border-radius: 50%; background: var(--ink); color: white; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+    .btn { width: 50px; height: 50px; border-radius: 50%; background: var(--ink); color: white; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .btn.active { background: var(--rust); border: 2px solid white; }
 
     .footer-list { height: 130px; background: white; border-top: 2px solid #ccc; overflow-y: auto; }
-    .loc-row { padding: 12px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 13px; cursor: pointer; }
+    .loc-row { padding: 12px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; }
 
+    /* MODALS */
     .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; padding: 15px; }
     .modal-bg.open { display: flex; }
     .modal { background: white; width: 100%; max-width: 550px; padding: 25px; border-radius: 10px; max-height: 90vh; overflow-y: auto; }
-    
-    label { font-size: 10px; font-weight: bold; color: #666; margin-top: 12px; display: block; text-transform: uppercase; }
-    input, textarea, select { width: 100%; padding: 10px; margin: 5px 0 10px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
-    .btn-main { background: var(--rust); color: white; font-weight: bold; border: none; width: 100%; padding: 14px; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-    .btn-outline { background: white; color: var(--ink); border: 1px solid #ccc; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 5px; font-weight: bold; }
+    input, textarea, select { width: 100%; padding: 10px; margin: 5px 0 10px 0; border: 1px solid #ccc; border-radius: 6px; }
+    .btn-main { background: var(--rust); color: white; font-weight: bold; border: none; width: 100%; padding: 14px; border-radius: 6px; cursor: pointer; }
 
-    #report-view { display: none; position: fixed; inset: 0; background: #333; z-index: 5000; overflow-y: auto; }
-    #report-content { width: 210mm; margin: 0 auto; background: white; counter-reset: pageNum; }
+    /* RAPPORT / PRINT ENGINE */
+    #report-view { display: none; position: fixed; inset: 0; background: #333; z-index: 5000; overflow-y: auto; padding: 20px 0; }
+    .page-container { 
+        width: 210mm; 
+        height: 296.8mm; 
+        margin: 0 auto 10mm auto; 
+        background: white; 
+        padding: 15mm; 
+        position: relative; 
+        box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
 
     @media print {
-        @page { size: A4; margin: 0; }
-        body { overflow: visible !important; height: auto !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        .report-ui, .topbar, .sheet-bar, .controls, .footer-list, .modal-bg { display: none !important; }
-        #report-view { display: block !important; position: absolute !important; top:0; left:0; width: 100% !important; background: white; padding: 0; }
-        #report-content { width: 100%; margin: 0; box-shadow: none; }
-        .page-container { position: relative; width: 210mm; height: 297mm; overflow: hidden; page-break-after: always; padding: 15mm; }
-        .page-num::after { counter-increment: pageNum; content: "Pagina " counter(pageNum); position: absolute; bottom: 10mm; right: 15mm; font-size: 9pt; color: #888; }
-        .cover-page { height: 297mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 30mm 20mm; text-align: center; page-break-after: always; }
-        .report-img-main { width: 100%; max-height: 120mm; object-fit: contain; margin: 5mm 0; border: 1px solid #eee; }
-        .loc-block { break-inside: avoid; border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; border-left: 8px solid var(--bc); background: #fdfdfd !important; }
-        .photo-grid-rep { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; }
-        .photo-grid-rep img { width: 100%; height: 160px; object-fit: cover; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; font-size: 10pt; }
-        th { background: #f0f0f0 !important; }
+        body { overflow: visible !important; height: auto !important; background: none !important; }
+        .topbar, .sheet-bar, .controls, .footer-list, .modal-bg, .report-ui { display: none !important; }
+        #report-view { display: block !important; position: static !important; padding: 0 !important; background: white !important; }
+        .page-container { margin: 0 !important; box-shadow: none !important; page-break-after: always !important; }
+        .page-num::after { counter-increment: pageNum; content: "Pagina " counter(pageNum); position: absolute; bottom: 10mm; right: 15mm; font-size: 9pt; }
     }
+
+    .report-img-main { width: 100%; max-height: 100mm; object-fit: contain; border: 1px solid #ccc; margin-bottom: 10px; }
+    .loc-block { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-left: 6px solid var(--bc); break-inside: avoid; }
+    .photo-grid-rep { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px; }
+    .photo-grid-rep img { width: 100%; height: 140px; object-fit: cover; border-radius: 3px; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
     <div>
-        <span style="font-weight: 800; margin-right: 15px;">INSPECTOR PRO v14.8</span>
-        <button onclick="openM('file-modal')" style="background:#444; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">📁 PROJECT</button>
+        <span style="font-weight: 800;">INSPECTOR PRO v14.9</span>
+        <button onclick="openM('file-modal')" style="margin-left:15px; background:#444; color:white; border:none; padding:6px; cursor:pointer;">📁</button>
     </div>
     <div>
-        <button onclick="openM('project-modal')" style="background:none; color:white; border:1px solid white; padding:8px 12px; border-radius:6px; cursor:pointer; margin-right:10px;">DATA & LOGO</button>
-        <button onclick="generateReport()" style="background: var(--green); color: white; border: none; padding: 9px 15px; border-radius: 6px; font-weight: bold; cursor: pointer;">MAAK RAPPORT</button>
+        <button onclick="openM('project-modal')" style="background:none; color:white; border:1px solid white; padding:8px; border-radius:4px; cursor:pointer;">INSTELLINGEN</button>
+        <button onclick="generateReport()" style="background: var(--green); color: white; border: none; padding: 9px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-left:10px;">MAAK RAPPORT</button>
     </div>
 </div>
 
 <div class="sheet-bar" id="sheet-tabs">
-    <button onclick="document.getElementById('file-in').click()" style="padding: 8px 15px; background: black; color: white; border-radius: 6px; border:none; font-weight:bold; cursor: pointer;">+ VOEG GEVEL TOE</button>
+    <button onclick="document.getElementById('file-in').click()" style="padding: 8px; background: black; color: white; border:none; cursor: pointer;">+ GEVEL</button>
 </div>
 <input type="file" id="file-in" accept="image/*,application/pdf" style="display:none" onchange="handleFile(event)">
 
@@ -97,64 +101,55 @@
 <div class="modal-bg" id="project-modal">
     <div class="modal">
         <h3>Projectgegevens</h3>
-        <label>Rapport Titel</label><input type="text" id="p-title" value="INSPECTIERAPPORT HOUTROT">
-        <label>Opdrachtgever</label><input type="text" id="p-client">
-        <label>Projectlocatie</label><input type="text" id="p-name">
-        <label>Inspecteur</label><input type="text" id="p-inspector">
-        <label>Datum</label><input type="date" id="p-date">
-        <label style="display:flex; align-items:center; gap:10px; background:#eee; padding:10px; border-radius:6px; cursor:pointer; margin:15px 0;">
-            <input type="checkbox" id="p-show-calc" style="width:auto; margin:0;"> Toon uren en materiaal op rapport
-        </label>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div><label>Ons Logo</label><input type="file" onchange="readLogo(this, 'our')"></div>
-            <div><label>Logo Klant</label><input type="file" onchange="readLogo(this, 'client')"></div>
+        <input type="text" id="p-title" value="INSPECTIERAPPORT HOUTROT" placeholder="Titel">
+        <input type="text" id="p-client" placeholder="Opdrachtgever">
+        <input type="text" id="p-name" placeholder="Projectlocatie">
+        <input type="text" id="p-inspector" placeholder="Inspecteur">
+        <input type="date" id="p-date">
+        <label><input type="checkbox" id="p-show-calc"> Toon calculatie</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+            <input type="file" onchange="readLogo(this, 'our')">
+            <input type="file" onchange="readLogo(this, 'client')">
         </div>
-        <button class="btn-main" onclick="closeM('project-modal')">OPSLAAN</button>
+        <button class="btn-main" onclick="closeM('project-modal')" style="margin-top:20px;">OPSLAAN</button>
     </div>
 </div>
 
 <div class="modal-bg" id="loc-modal">
     <div class="modal">
         <h3>Inspectiepunt</h3>
-        <label>Urgentie</label>
-        <select id="m-color-sel">
-            <option value="#ef4444">Rood - Direct herstel</option>
-            <option value="#f59e0b">Oranje - Onderhoud</option>
-            <option value="#3b82f6">Blauw - Monitoring</option>
-        </select>
-        <label>Onderdeel</label><input type="text" id="m-naam" placeholder="Naam onderdeel">
-        <label>Maatregel</label>
+        <select id="m-color-sel"><option value="#ef4444">Rood</option><option value="#f59e0b">Oranje</option><option value="#3b82f6">Blauw</option></select>
+        <input type="text" id="m-naam" placeholder="Onderdeel">
         <select id="m-werkwijze">
-            <option value="P2: Afdichten van naden en verbindingen (buiten)">P2: Afdichten van naden en verbindingen (buiten)</option>
-            <option value="C1: Herstellen van aangetast hout">C1: Herstellen van aangetast hout</option>
-            <option value="C4: Herstellen door deelvervanging">C4: Herstellen door deelvervanging</option>
-            <option value="PG1: Vervangen van kitvoegen">PG1: Vervangen van kitvoegen</option>
+            <option value="P2: Afdichten van naden">P2: Afdichten van naden</option>
+            <option value="C1: Herstellen hout">C1: Herstellen hout</option>
+            <option value="C4: Deelvervanging">C4: Deelvervanging</option>
         </select>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div><label>Uren</label><input type="number" id="m-uren" step="0.5" value="0"></div>
-            <div><label>Materiaal (€)</label><input type="number" id="m-mat" value="0"></div>
+            <input type="number" id="m-uren" placeholder="Uren">
+            <input type="number" id="m-mat" placeholder="Materiaal €">
         </div>
-        <label>Opmerkingen</label><textarea id="m-desc" rows="2"></textarea>
-        <button onclick="document.getElementById('ph-in').click()" class="btn-outline">📸 FOTO'S TOEVOEGEN</button>
+        <textarea id="m-desc" placeholder="Opmerkingen"></textarea>
+        <button onclick="document.getElementById('ph-in').click()" class="btn-main" style="background:#666;">📸 FOTO'S</button>
         <input type="file" id="ph-in" multiple accept="image/*" style="display:none" onchange="addPhotos(event)">
         <div id="ph-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:10px;"></div>
-        <button class="btn-main" onclick="saveLoc()">PUNT OPSLAAN</button>
-        <button onclick="deleteLoc()" style="color:red; background:none; border:none; width:100%; margin-top:10px; cursor:pointer;">VERWIJDER PUNT</button>
+        <button class="btn-main" onclick="saveLoc()" style="margin-top:15px;">OPSLAAN</button>
+        <button onclick="deleteLoc()" style="color:red; background:none; border:none; width:100%; margin-top:10px;">VERWIJDER</button>
     </div>
 </div>
 
-<div class="modal-bg" id="file-modal"><div class="modal"><h3>Project Opslag</h3><button class="btn-main" onclick="exportProject()">DOWNLOAD .JSON</button><label>Importeer .JSON</label><input type="file" accept=".json" onchange="importProject(event)"><button class="btn-outline" onclick="closeM('file-modal')">SLUITEN</button></div></div>
+<div class="modal-bg" id="file-modal"><div class="modal"><h3>Opslag</h3><button class="btn-main" onclick="exportProject()">DOWNLOAD .JSON</button><input type="file" onchange="importProject(event)"><button onclick="closeM('file-modal')">SLUITEN</button></div></div>
 
 <div id="report-view">
-    <div class="report-ui" style="width:210mm; margin:10px auto; display:flex; gap:10px; justify-content: center; position: sticky; top: 10px; z-index: 9999;">
-        <button onclick="document.getElementById('report-view').style.display='none'" style="padding:12px 25px; border-radius:8px; cursor:pointer; border:1px solid #ccc; background: white;">TERUG</button>
-        <button onclick="window.print()" style="padding:12px 40px; border-radius:8px; background:var(--green); color:white; border:none; font-weight:bold; cursor:pointer;">PDF OPSLAAN</button>
+    <div class="report-ui" style="position:fixed; top:20px; right:40px; z-index:9999; display:flex; flex-direction:column; gap:10px;">
+        <button onclick="window.print()" style="padding:15px 30px; background:var(--green); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">🖨️ NU AFDRUKKEN / PDF</button>
+        <button onclick="document.getElementById('report-view').style.display='none'" style="padding:10px; background:white; border:1px solid #ccc; border-radius:8px; cursor:pointer;">ANNULEREN</button>
     </div>
     <div id="report-content"></div>
 </div>
 
 <script>
-let sheets = [], activeIdx = -1, mode = 'mark', scale = 1, activeDrag = null;
+let sheets = [], activeIdx = -1, mode = 'mark', scale = 1;
 let logos = { our: null, client: null };
 let curPh = [], curId = null, curX = 0, curY = 0;
 const mCvs = document.getElementById('main-canvas'), oCvs = document.getElementById('overlay-canvas');
@@ -162,65 +157,6 @@ const mCtx = mCvs.getContext('2d'), oCtx = oCvs.getContext('2d');
 
 function openM(id) { document.getElementById(id).classList.add('open'); }
 function closeM(id) { document.getElementById(id).classList.remove('open'); autoSave(); }
-
-// --- RENAME GEVEL ---
-function renameSheet(idx, e) {
-    e.stopPropagation(); // Voorkom dat switchSheet wordt getriggerd
-    const newName = prompt("Nieuwe naam voor gevel:", sheets[idx].name);
-    if(newName) { 
-        sheets[idx].name = newName; 
-        updateTabs(); 
-        autoSave(); 
-    }
-}
-
-function handleInteraction(e) {
-    if(activeIdx === -1) return;
-    const r = oCvs.getBoundingClientRect();
-    const x = ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) / scale;
-    const y = ((e.touches ? e.touches[0].clientY : e.clientY) - r.top) / scale;
-    if(e.type === 'mousedown' || e.type === 'touchstart') {
-        const hit = sheets[activeIdx].locs.find(l => Math.hypot(l.x - x, l.y - y) < 20/scale);
-        if(mode === 'drag' && hit) { activeDrag = hit; }
-        else if(mode === 'mark') { if(hit) openLoc(hit); else openLoc(null, x, y); }
-    } else if((e.type === 'mousemove' || e.type === 'touchmove') && activeDrag) {
-        activeDrag.x = x; activeDrag.y = y; redraw();
-    } else { activeDrag = null; }
-}
-
-function openLoc(l, x, y) {
-    curId = l ? l.id : null; curX = l ? l.x : x; curY = l ? l.y : y; curPh = l ? [...l.fotos] : [];
-    document.getElementById('m-naam').value = l ? l.naam : "";
-    document.getElementById('m-desc').value = l ? l.desc : "";
-    document.getElementById('m-uren').value = l ? l.uren : 0;
-    document.getElementById('m-mat').value = l ? l.mat : 0;
-    document.getElementById('m-werkwijze').value = l ? l.werkwijze : "P2: Afdichten van naden en verbindingen (buiten)";
-    document.getElementById('m-color-sel').value = l ? l.color : "#ef4444";
-    renderPh(); openM('loc-modal');
-}
-
-function saveLoc() {
-    const s = sheets[activeIdx];
-    const d = { id: curId || Date.now(), x: curX, y: curY, naam: document.getElementById('m-naam').value, desc: document.getElementById('m-desc').value, werkwijze: document.getElementById('m-werkwijze').value, uren: parseFloat(document.getElementById('m-uren').value)||0, mat: parseFloat(document.getElementById('m-mat').value)||0, color: document.getElementById('m-color-sel').value, fotos: [...curPh] };
-    if(curId) s.locs = s.locs.map(l => l.id === curId ? d : l); else s.locs.push(d);
-    closeM('loc-modal'); redraw(); renderList(); autoSave();
-}
-
-function redraw() {
-    oCtx.clearRect(0,0,oCvs.width,oCvs.height);
-    if(activeIdx !== -1) sheets[activeIdx].locs.forEach((l, i) => {
-        oCtx.beginPath(); oCtx.arc(l.x, l.y, 18/scale, 0, Math.PI*2); oCtx.fillStyle = l.color; oCtx.fill();
-        oCtx.fillStyle="white"; oCtx.font=`bold ${14/scale}px Arial`; oCtx.textAlign="center"; oCtx.fillText(i+1, l.x, l.y+(5/scale));
-    });
-}
-function renderList() {
-    const l = document.getElementById('loc-list'); l.innerHTML = '';
-    if(activeIdx !== -1) sheets[activeIdx].locs.forEach((loc, i) => {
-        l.innerHTML += `<div class="loc-row" onclick="openLocById(${loc.id})"><span><b>${i+1}.</b> ${loc.naam}</span> <span>${loc.werkwijze.split(':')[0]}</span></div>`;
-    });
-}
-function openLocById(id) { openLoc(sheets[activeIdx].locs.find(l => l.id === id)); }
-function readLogo(input, type) { const reader = new FileReader(); reader.onload = (e) => { logos[type] = e.target.result; autoSave(); }; reader.readAsDataURL(input.files[0]); }
 
 async function handleFile(e) {
     const file = e.target.files[0]; if(!file) return;
@@ -242,65 +178,124 @@ async function handleFile(e) {
 }
 
 function switchSheet(idx) {
-    if(idx < 0 || idx >= sheets.length) return;
-    activeIdx = idx; 
-    const img = new Image();
+    activeIdx = idx; const img = new Image();
     img.onload = () => {
         mCvs.width = oCvs.width = img.width; mCvs.height = oCvs.height = img.height;
         mCtx.drawImage(img, 0, 0); 
         scale = (document.querySelector('.viewport').clientWidth - 40) / img.width;
         updateTabs(); renderList(); redraw(); zoom(1);
-    }; 
-    img.src = sheets[idx].imgData;
+    }; img.src = sheets[idx].imgData;
 }
 
 function updateTabs() {
-    const bar = document.getElementById('sheet-tabs'); 
-    // Behoud alleen de '+ VOEG GEVEL TOE' knop
+    const bar = document.getElementById('sheet-tabs');
     const addBtn = bar.querySelector('button[onclick*="file-in"]');
-    bar.innerHTML = '';
-    bar.appendChild(addBtn);
-
+    bar.innerHTML = ''; bar.appendChild(addBtn);
     sheets.forEach((s, i) => {
-        const t = document.createElement('button'); 
+        const t = document.createElement('button');
         t.className = `sheet-tab ${i===activeIdx?'active':''}`;
         t.innerHTML = `<span onclick="switchSheet(${i})">${s.name}</span> <span class="rename-btn" onclick="renameSheet(${i}, event)">✎</span>`;
         bar.appendChild(t);
     });
 }
 
+function renameSheet(idx, e) {
+    e.stopPropagation();
+    const n = prompt("Nieuwe naam:", sheets[idx].name);
+    if(n) { sheets[idx].name = n; updateTabs(); autoSave(); }
+}
+
+function handleInteraction(e) {
+    if(activeIdx === -1) return;
+    const r = oCvs.getBoundingClientRect();
+    const x = ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) / scale;
+    const y = ((e.touches ? e.touches[0].clientY : e.clientY) - r.top) / scale;
+    if(e.type === 'mousedown' || e.type === 'touchstart') {
+        const hit = sheets[activeIdx].locs.find(l => Math.hypot(l.x - x, l.y - y) < 20/scale);
+        if(hit) openLoc(hit); else openLoc(null, x, y);
+    }
+}
+
+function openLoc(l, x, y) {
+    curId = l ? l.id : null; curX = l ? l.x : x; curY = l ? l.y : y; curPh = l ? [...l.fotos] : [];
+    document.getElementById('m-naam').value = l ? l.naam : "";
+    document.getElementById('m-desc').value = l ? l.desc : "";
+    document.getElementById('m-uren').value = l ? l.uren : 0;
+    document.getElementById('m-mat').value = l ? l.mat : 0;
+    document.getElementById('m-werkwijze').value = l ? l.werkwijze : "P2: Afdichten van naden";
+    document.getElementById('m-color-sel').value = l ? l.color : "#ef4444";
+    renderPh(); openM('loc-modal');
+}
+
+function saveLoc() {
+    const s = sheets[activeIdx];
+    const d = { id: curId || Date.now(), x: curX, y: curY, naam: document.getElementById('m-naam').value, desc: document.getElementById('m-desc').value, werkwijze: document.getElementById('m-werkwijze').value, uren: parseFloat(document.getElementById('m-uren').value)||0, mat: parseFloat(document.getElementById('m-mat').value)||0, color: document.getElementById('m-color-sel').value, fotos: [...curPh] };
+    if(curId) s.locs = s.locs.map(l => l.id === curId ? d : l); else s.locs.push(d);
+    closeM('loc-modal'); redraw(); renderList();
+}
+
+function redraw() {
+    oCtx.clearRect(0,0,oCvs.width,oCvs.height);
+    if(activeIdx !== -1) sheets[activeIdx].locs.forEach((l, i) => {
+        oCtx.beginPath(); oCtx.arc(l.x, l.y, 18/scale, 0, Math.PI*2); oCtx.fillStyle = l.color; oCtx.fill();
+        oCtx.fillStyle="white"; oCtx.font=`bold ${14/scale}px Arial`; oCtx.textAlign="center"; oCtx.fillText(i+1, l.x, l.y+(5/scale));
+    });
+}
+function renderList() {
+    const l = document.getElementById('loc-list'); l.innerHTML = '';
+    if(activeIdx !== -1) sheets[activeIdx].locs.forEach((loc, i) => {
+        l.innerHTML += `<div class="loc-row" onclick="openLocById(${loc.id})"><span><b>${i+1}.</b> ${loc.naam}</span></div>`;
+    });
+}
+function openLocById(id) { openLoc(sheets[activeIdx].locs.find(l => l.id === id)); }
+function readLogo(input, type) { const reader = new FileReader(); reader.onload = (e) => { logos[type] = e.target.result; autoSave(); }; reader.readAsDataURL(input.files[0]); }
 function addPhotos(e) { Array.from(e.target.files).forEach(f => { const r = new FileReader(); r.onload = (ev) => { curPh.push(ev.target.result); renderPh(); }; r.readAsDataURL(f); }); }
 function renderPh() {
     const g = document.getElementById('ph-grid'); g.innerHTML = '';
-    curPh.forEach((src, i) => { g.innerHTML += `<div style="position:relative"><img src="${src}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;"><div onclick="curPh.splice(${i},1);renderPh()" style="position:absolute;top:0;right:0;background:red;color:white;width:20px;height:20px;border-radius:50%;text-align:center;cursor:pointer">×</div></div>`; });
+    curPh.forEach((src, i) => { g.innerHTML += `<div style="position:relative"><img src="${src}" style="width:100%;aspect-ratio:1;object-fit:cover;"><div onclick="curPh.splice(${i},1);renderPh()" style="position:absolute;top:0;right:0;background:red;color:white;width:20px;cursor:pointer">×</div></div>`; });
 }
 function deleteLoc() { sheets[activeIdx].locs = sheets[activeIdx].locs.filter(l => l.id !== curId); closeM('loc-modal'); redraw(); renderList(); }
 function setMode(m) { mode = m; document.querySelectorAll('.controls .btn').forEach(b=>b.classList.remove('active')); document.getElementById('m-'+m).classList.add('active'); }
 function zoom(f) { scale *= f; document.getElementById('canvas-wrap').style.transform = `scale(${scale})`; }
 
-// --- REPORT GENERATOR ---
+// --- FIXED A4 REPORT GENERATOR V14.9 ---
 async function generateReport() {
     const container = document.getElementById('report-content');
-    container.innerHTML = "<p style='padding:40px'>Rapport samenstellen...</p>";
+    container.innerHTML = "<p style='color:white; text-align:center;'>Pagina's opbouwen...</p>";
     document.getElementById('report-view').style.display = 'block';
-    const p = { title: document.getElementById('p-title').value, client: document.getElementById('p-client').value, project: document.getElementById('p-name').value, inspector: document.getElementById('p-inspector').value, date: document.getElementById('p-date').value, showCalc: document.getElementById('p-show-calc').checked };
+    
+    const p = { 
+        title: document.getElementById('p-title').value, 
+        client: document.getElementById('p-client').value, 
+        project: document.getElementById('p-name').value, 
+        inspector: document.getElementById('p-inspector').value, 
+        date: document.getElementById('p-date').value, 
+        showCalc: document.getElementById('p-show-calc').checked 
+    };
 
-    let html = `<div class="cover-page">
-        <div>${logos.our ? `<img src="${logos.our}" style="max-height:100px;">` : ''}</div>
-        <div>
-            <h1 style="font-size:36pt; margin-bottom:20px;">${p.title}</h1>
-            ${logos.client ? `<img src="${logos.client}" style="max-height:140px; margin-bottom:20px;">` : ''}
+    let totalHtml = "";
+
+    // PAGINA 1: VOORBLAD
+    totalHtml += `
+    <div class="page-container">
+        <div style="display:flex; justify-content:space-between;">
+            ${logos.our ? `<img src="${logos.our}" style="max-height:80px;">` : '<div></div>'}
+            ${logos.client ? `<img src="${logos.client}" style="max-height:80px;">` : '<div></div>'}
+        </div>
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+            <h1 style="font-size:38pt; margin-bottom:10px;">${p.title}</h1>
             <h2 style="font-size:24pt; color:var(--rust);">${p.project}</h2>
         </div>
-        <div style="width:100%; text-align:left; border-top:3px solid var(--ink); padding-top:15mm;">
-            <p style="font-size:14pt;"><b>Opdrachtgever:</b> ${p.client}</p>
-            <p style="font-size:14pt;"><b>Inspecteur:</b> ${p.inspector}</p>
-            <p style="font-size:14pt;"><b>Datum:</b> ${p.date}</p>
+        <div style="border-top:2px solid #000; padding-top:10mm;">
+            <p><b>Opdrachtgever:</b> ${p.client}</p>
+            <p><b>Inspecteur:</b> ${p.inspector}</p>
+            <p><b>Datum:</b> ${p.date}</p>
         </div>
     </div>`;
 
-    let summary = {};
+    // PAGINA'S PER GEVEL
     for(let s of sheets) {
+        // Maak screenshot
         const screenshot = await new Promise(res => {
             const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const img = new Image();
             img.onload = () => {
@@ -308,53 +303,54 @@ async function generateReport() {
                 s.locs.forEach((l, idx) => {
                     ctx.beginPath(); ctx.arc(l.x, l.y, 25, 0, Math.PI*2); ctx.fillStyle = l.color; ctx.fill();
                     ctx.fillStyle="white"; ctx.font="bold 28px Arial"; ctx.textAlign="center"; ctx.fillText(idx+1, l.x, l.y+10);
-                    summary[l.werkwijze] = summary[l.werkwijze] || {c:0, u:0, m:0};
-                    summary[l.werkwijze].c++; summary[l.werkwijze].u += l.uren; summary[l.werkwijze].m += l.mat;
                 });
                 res(canvas.toDataURL('image/jpeg', 0.8));
             }; img.src = s.imgData;
         });
 
-        html += `<div class="page-container page-num">
-            <h2 style="background:var(--ink); color:white; padding:10px; font-size:18pt;">Gevel: ${s.name}</h2>
-            <img src="${screenshot}" class="report-img-main">`;
+        // Start Gevel Overzichtspagina
+        totalHtml += `<div class="page-container page-num">
+            <h2 style="background:var(--ink); color:white; padding:8px; margin-bottom:10px;">Gevel: ${s.name}</h2>
+            <img src="${screenshot}" class="report-img-main">
+            <div class="points-area">`;
         
-        s.locs.forEach((l, idx) => {
-            html += `<div class="loc-block" style="--bc:${l.color}">
-                <h3>${idx+1}. ${l.naam}</h3>
-                <p><b>Maatregel:</b> ${l.werkwijze}</p>
-                ${p.showCalc ? `<p style="color:var(--rust); font-size:11px;"><b>Calculatie:</b> ${l.uren} uren | € ${l.mat}</p>` : ''}
-                <p><b>Opmerking:</b> ${l.desc || '-'}</p>
+        let pointCount = 0;
+        for(let l of s.locs) {
+            pointCount++;
+            // Als we meer dan 3 punten op de eerste pagina hebben (met grote foto), of 4 punten op vervolgpagina's, moeten we splitsen.
+            // Voor de eenvoud: we plaatsen max 2 punten onder een geveltekening, daarna nieuwe pagina.
+            if(pointCount > 2) {
+                totalHtml += `</div></div><div class="page-container page-num">
+                              <h3 style="margin-bottom:10px;">Vervolg: ${s.name}</h3>
+                              <div class="points-area">`;
+                pointCount = 1;
+            }
+
+            totalHtml += `
+            <div class="loc-block" style="--bc:${l.color}">
+                <h4 style="margin-bottom:5px;">${s.locs.indexOf(l)+1}. ${l.naam}</h4>
+                <p style="font-size:9pt;"><b>Maatregel:</b> ${l.werkwijze} ${p.showCalc ? `| ${l.uren}u - €${l.mat}` : ''}</p>
+                <p style="font-size:9pt; margin-bottom:5px;"><b>Opmerking:</b> ${l.desc || '-'}</p>
                 <div class="photo-grid-rep">${l.fotos.map(f=>`<img src="${f}">`).join('')}</div>
             </div>`;
-        });
-        html += `</div>`;
+        }
+        totalHtml += `</div></div>`;
     }
 
-    html += `<div class="page-container page-num">
-        <h2 style="margin-bottom:15px;">SAMENVATTING MAATREGELEN</h2>
-        <table><thead><tr><th>Code</th><th>Omschrijving</th><th style="text-align:center">Aantal</th>${p.showCalc ? `<th>Uren</th><th>Materiaal</th>` : ''}</tr></thead><tbody>`;
-    Object.keys(summary).sort().forEach(k => {
-        html += `<tr><td><b>${k.split(':')[0]}</b></td><td>${k.split(': ')[1]}</td><td style="text-align:center">${summary[k].c}</td>${p.showCalc ? `<td>${summary[k].u}</td><td>€ ${summary[k].m}</td>` : ''}</tr>`;
-    });
-    html += `</tbody></table></div>`;
-
-    container.innerHTML = html;
+    container.innerHTML = totalHtml;
 }
 
-function autoSave() { localStorage.setItem('inspector_v14_8', JSON.stringify({ sheets, logos, meta: { title: document.getElementById('p-title').value, client: document.getElementById('p-client').value, project: document.getElementById('p-name').value, inspector: document.getElementById('p-inspector').value, date: document.getElementById('p-date').value, showCalc: document.getElementById('p-show-calc').checked }})); }
+function autoSave() { localStorage.setItem('inspector_v14_9', JSON.stringify({ sheets, logos })); }
 function loadData() {
-    const saved = localStorage.getItem('inspector_v14_8'); if(!saved) return;
+    const saved = localStorage.getItem('inspector_v14_9'); if(!saved) return;
     const d = JSON.parse(saved); sheets = d.sheets || []; logos = d.logos || {our:null, client:null};
-    if(d.meta) { document.getElementById('p-title').value = d.meta.title; document.getElementById('p-client').value = d.meta.client; document.getElementById('p-name').value = d.meta.project; document.getElementById('p-inspector').value = d.meta.inspector; document.getElementById('p-date').value = d.meta.date; document.getElementById('p-show-calc').checked = d.meta.showCalc; }
     if(sheets.length > 0) switchSheet(0); else updateTabs();
 }
 
-function exportProject() { const b = new Blob([localStorage.getItem('inspector_v14_8')], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `Project.json`; a.click(); }
-function importProject(e) { const r = new FileReader(); r.onload = (ev) => { localStorage.setItem('inspector_v14_8', ev.target.result); location.reload(); }; r.readAsText(e.target.files[0]); }
+function exportProject() { const b = new Blob([localStorage.getItem('inspector_v14_9')], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `Project.json`; a.click(); }
+function importProject(e) { const r = new FileReader(); r.onload = (ev) => { localStorage.setItem('inspector_v14_9', ev.target.result); location.reload(); }; r.readAsText(e.target.files[0]); }
 
 oCvs.addEventListener('mousedown', handleInteraction);
-oCvs.addEventListener('touchstart', (e) => { e.preventDefault(); handleInteraction(e); }, {passive:false});
 window.onload = loadData;
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 </script>
