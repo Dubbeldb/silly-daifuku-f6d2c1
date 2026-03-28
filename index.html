@@ -3,65 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Inspector Pro V14.5 - Final Print Fix</title>
+<title>Inspector Pro V14.6 - Auto-Scaling Fix</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
     :root { --rust: #bf4020; --ink: #1c1814; --green: #3d6b38; --light: #f4f4f4; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; background: var(--light); overflow: hidden; }
     
+    /* UI Elementen */
     .topbar { background: var(--ink); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
-    .sheet-bar { background: #e0e0e0; padding: 10px; display: flex; gap: 8px; overflow-x: auto; border-bottom: 1px solid #ccc; min-height: 50px; align-items: center; }
-    .sheet-tab { padding: 8px 15px; background: #bbb; border-radius: 6px; font-size: 11px; font-weight: bold; border: none; cursor: pointer; white-space: nowrap; }
-    .sheet-tab.active { background: var(--rust); color: white; }
-
+    .sheet-bar { background: #e0e0e0; padding: 10px; display: flex; gap: 8px; overflow-x: auto; border-bottom: 1px solid #ccc; min-height: 50px; }
     .viewport { flex: 1; position: relative; overflow: auto; background: #555; }
     #canvas-wrap { position: relative; display: inline-block; background: white; transform-origin: 0 0; margin: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
-    canvas { display: block; }
     #overlay-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
-
-    .controls { position: fixed; bottom: 160px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; }
-    .btn { width: 50px; height: 50px; border-radius: 50%; background: var(--ink); color: white; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-    .btn.active { background: var(--rust); border: 2px solid white; }
-
     .footer-list { height: 130px; background: white; border-top: 2px solid #ccc; overflow-y: auto; }
-    .loc-row { padding: 12px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 13px; cursor: pointer; }
+    .loc-row { padding: 12px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; }
 
+    /* Knoppen */
+    .btn { width: 50px; height: 50px; border-radius: 50%; background: var(--ink); color: white; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .btn.active { background: var(--rust); border: 2px solid white; }
+    .controls { position: fixed; bottom: 160px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; }
+
+    /* Modals */
     .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; padding: 15px; }
     .modal-bg.open { display: flex; }
     .modal { background: white; width: 100%; max-width: 550px; padding: 25px; border-radius: 10px; max-height: 90vh; overflow-y: auto; }
-    
     label { font-size: 10px; font-weight: bold; color: #666; margin-top: 12px; display: block; text-transform: uppercase; }
-    input, textarea, select { width: 100%; padding: 10px; margin: 5px 0 10px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
-    .btn-main { background: var(--rust); color: white; font-weight: bold; border: none; width: 100%; padding: 14px; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-    .btn-outline { background: white; color: var(--ink); border: 1px solid #ccc; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 5px; font-weight: bold; }
+    input, textarea, select { width: 100%; padding: 10px; margin: 5px 0 10px 0; border: 1px solid #ccc; border-radius: 6px; }
 
-    #report-view { display: none; position: fixed; inset: 0; background: #333; z-index: 5000; overflow-y: auto; padding: 20px 0; }
-    #report-content { width: 210mm; margin: 0 auto; background: white; }
+    /* Rapportage Styling */
+    #report-view { display: none; position: fixed; inset: 0; background: #333; z-index: 5000; overflow-y: auto; }
+    #report-content { width: 210mm; margin: 0 auto; background: white; padding: 0; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
 
     @media print {
-        @page { size: A4; margin: 15mm; }
-        body { overflow: visible !important; height: auto !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        @page { size: A4; margin: 10mm; }
+        body { overflow: visible !important; height: auto !important; background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         .report-ui, .topbar, .sheet-bar, .controls, .footer-list, .modal-bg { display: none !important; }
-        #report-view { display: block !important; position: absolute !important; top:0; left:0; width: 100% !important; background: white; padding: 0; }
-        #report-content { width: 100%; margin: 0; box-shadow: none; }
-        .page-break { page-break-before: always !important; display: block; clear: both; }
-        .cover-page { height: 260mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20mm; text-align: center; }
-        .report-page { padding: 10mm 0; min-height: 280mm; }
-        .loc-block { break-inside: avoid; border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-left: 10px solid var(--bc); }
-        .photo-grid-rep { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .photo-grid-rep img { width: 100%; height: 200px; object-fit: cover; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 11px; }
-        th { background: #f0f0f0 !important; }
+        #report-view { display: block !important; position: static !important; width: 100% !important; background: white !important; }
+        #report-content { width: 100% !important; margin: 0 !important; box-shadow: none !important; }
+        
+        .page-break { page-break-before: always !important; display: block; clear: both; padding-top: 10mm; }
+        .cover-page { height: 270mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20mm; text-align: center; border: 1px solid #eee; }
+        
+        .report-img-main { 
+            width: 100% !important; 
+            max-height: 450px !important; 
+            object-fit: contain !important; 
+            margin: 10mm 0;
+            display: block;
+        }
+
+        .loc-block { 
+            break-inside: avoid; 
+            border: 1px solid #ccc; 
+            padding: 15px; 
+            margin-bottom: 15px; 
+            border-left: 8px solid var(--bc);
+            background: #fafafa !important;
+        }
+
+        .photo-grid-rep { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .photo-grid-rep img { width: 100%; height: 180px; object-fit: cover; border-radius: 4px; }
+        
+        table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+        tr { page-break-inside: avoid; page-break-after: auto; }
+        th, td { border: 1px solid #ccc; padding: 8px; font-size: 10px; }
+        th { background: #eee !important; }
     }
+
+    .btn-main { background: var(--rust); color: white; font-weight: bold; border: none; width: 100%; padding: 14px; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+    .btn-outline { background: white; color: var(--ink); border: 1px solid #ccc; padding: 10px; border-radius: 6px; width: 100%; margin-top: 5px; font-weight: bold; }
+    .sheet-tab { padding: 8px 15px; background: #bbb; border-radius: 6px; font-size: 11px; font-weight: bold; border: none; cursor: pointer; white-space: nowrap; }
+    .sheet-tab.active { background: var(--rust); color: white; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
     <div>
-        <span style="font-weight: 800; margin-right: 15px;">INSPECTOR PRO v14.5</span>
+        <span style="font-weight: 800; margin-right: 15px;">INSPECTOR PRO v14.6</span>
         <button onclick="openM('file-modal')" style="background:#444; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">📁 PROJECT</button>
     </div>
     <div>
@@ -71,7 +91,7 @@
 </div>
 
 <div class="sheet-bar" id="sheet-tabs">
-    <button onclick="document.getElementById('file-in').click()" style="padding: 8px 15px; background: black; color: white; border-radius: 6px; border:none; font-weight:bold; cursor: pointer;">+ VOEG GEVEL TOE</button>
+    <button onclick="document.getElementById('file-in').click()" style="padding: 8px 15px; background: black; color: white; border-radius: 6px; border:none; font-weight:bold; cursor: pointer;">+ GEVEL</button>
 </div>
 <input type="file" id="file-in" accept="image/*,application/pdf" style="display:none" onchange="handleFile(event)">
 
@@ -93,14 +113,14 @@
 
 <div class="modal-bg" id="project-modal">
     <div class="modal">
-        <h3>Project & Rapportage</h3>
-        <label>Titel</label><input type="text" id="p-title" value="INSPECTIERAPPORT HOUTROT">
+        <h3>Projectinstellingen</h3>
+        <label>Rapport Titel</label><input type="text" id="p-title" value="INSPECTIERAPPORT HOUTROT">
         <label>Opdrachtgever</label><input type="text" id="p-client">
         <label>Projectlocatie</label><input type="text" id="p-name">
         <label>Inspecteur</label><input type="text" id="p-inspector">
         <label>Datum</label><input type="date" id="p-date">
-        <label style="display:flex; align-items:center; gap:10px; background:#eee; padding:10px; border-radius:6px; cursor:pointer; margin:15px 0;">
-            <input type="checkbox" id="p-show-calc" style="width:auto; margin:0;"> Calculatie tonen in rapport
+        <label style="display:flex; align-items:center; gap:10px; background:#f0f0f0; padding:10px; border-radius:6px; cursor:pointer; margin:15px 0;">
+            <input type="checkbox" id="p-show-calc" style="width:auto; margin:0;"> Toon calculatie (uren/mat) in rapport
         </label>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div><label>Ons Logo</label><input type="file" onchange="readLogo(this, 'our')"></div>
@@ -112,33 +132,21 @@
 
 <div class="modal-bg" id="loc-modal">
     <div class="modal">
-        <h3 id="modal-title">Inspectiepunt</h3>
+        <h3>Inspectiepunt</h3>
         <label>Urgentie</label>
         <select id="m-color-sel">
             <option value="#ef4444">Rood - Direct herstel</option>
             <option value="#f59e0b">Oranje - Onderhoud</option>
             <option value="#3b82f6">Blauw - Monitoring</option>
         </select>
-        <label>Onderdeel</label><input type="text" id="m-naam" placeholder="Onderdeelnaam">
+        <label>Onderdeel</label><input type="text" id="m-naam" placeholder="Naam onderdeel">
         <label>Maatregel</label>
         <select id="m-werkwijze">
             <option value="P2: Afdichten van naden en verbindingen (buiten)">P2: Afdichten van naden en verbindingen (buiten)</option>
-            <option value="P3: Afdichten van aansluiting stijl met neut">P3: Afdichten van aansluiting stijl met neut</option>
             <option value="P4: Herstellen van scheuren">P4: Herstellen van scheuren</option>
-            <option value="P5: Herstellen van natuurlijke gebreken">P5: Herstellen van natuurlijke gebreken</option>
-            <option value="P6: Afdichten van kale en/of kopse kanten">P6: Afdichten van kale en/of kopse kanten</option>
-            <option value="P7: Afronden van verweerde en/of scherpe kanten">P7: Afronden van verweerde en/of scherpe kanten</option>
-            <option value="P8: Corrigeren van de omtrekspeling van draaiende delen">P8: Corrigeren van de omtrekspeling van draaiende delen</option>
-            <option value="P9: Herstellen van oppervlaktebeschadigingen">P9: Herstellen van oppervlaktebeschadigingen</option>
-            <option value="P10: Afdichten van verbindingen (binnen)">P10: Afdichten van verbindingen (binnen)</option>
-            <option value="P11: Herstellen van gedelamineerd geveltimmerwerk en haarscheuren">P11: Herstellen van gedelamineerd geveltimmerwerk</option>
-            <option value="P12: Detailverbetering van de aansluiting van houten onderdorpels">P12: Detailverbetering aansluiting</option>
-            <option value="C1: Herstellen van aangetast hout in houtconstructies">C1: Herstellen van aangetast hout</option>
-            <option value="C2: Herstellen door middel van lamineren">C2: Herstellen door middel van lamineren</option>
+            <option value="C1: Herstellen van aangetast hout">C1: Herstellen van aangetast hout</option>
             <option value="C4: Herstellen door deelvervanging">C4: Herstellen door deelvervanging</option>
-            <option value="PG1: Vervangen van ondeugdelijke kitvoegen">PG1: Vervangen van ondeugdelijke kitvoegen</option>
-            <option value="PG2: Vervangen van ondeugdelijke stopverfkanten">PG2: Vervangen van ondeugdelijke stopverfkanten</option>
-            <option value="PG6: Aanbrengen van geventileerde neuslatten">PG6: Aanbrengen van geventileerde neuslatten</option>
+            <option value="PG1: Vervangen van kitvoegen">PG1: Vervangen van kitvoegen</option>
         </select>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div><label>Uren</label><input type="number" id="m-uren" step="0.5" value="0"></div>
@@ -148,17 +156,17 @@
         <button onclick="document.getElementById('ph-in').click()" class="btn-outline">📸 FOTO'S TOEVOEGEN</button>
         <input type="file" id="ph-in" multiple accept="image/*" style="display:none" onchange="addPhotos(event)">
         <div id="ph-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:10px;"></div>
-        <button class="btn-main" onclick="saveLoc()">OPSLAAN PUNT</button>
+        <button class="btn-main" onclick="saveLoc()">PUNT OPSLAAN</button>
         <button onclick="deleteLoc()" style="color:red; background:none; border:none; width:100%; margin-top:10px; cursor:pointer;">VERWIJDER PUNT</button>
     </div>
 </div>
 
-<div class="modal-bg" id="file-modal"><div class="modal"><h3>Project Opslag</h3><button class="btn-main" onclick="exportProject()">DOWNLOAD .JSON</button><label>Importeer .JSON</label><input type="file" accept=".json" onchange="importProject(event)"><button class="btn-outline" onclick="closeM('file-modal')">SLUITEN</button></div></div>
+<div class="modal-bg" id="file-modal"><div class="modal"><h3>Opslag</h3><button class="btn-main" onclick="exportProject()">DOWNLOAD .JSON</button><label>Import</label><input type="file" accept=".json" onchange="importProject(event)"><button class="btn-outline" onclick="closeM('file-modal')">SLUITEN</button></div></div>
 
 <div id="report-view">
-    <div class="report-ui" style="width:210mm; margin:10px auto; display:flex; gap:10px;">
-        <button onclick="document.getElementById('report-view').style.display='none'" style="flex:1; padding:10px; cursor:pointer;">TERUG</button>
-        <button onclick="window.print()" style="flex:2; padding:10px; background:var(--green); color:white; border:none; font-weight:bold; cursor:pointer;">PDF OPSLAAN / AFDRUKKEN</button>
+    <div class="report-ui" style="position:sticky; top:0; background:#eee; padding:15px; display:flex; gap:10px; justify-content:center; border-bottom:1px solid #ccc; z-index:6000;">
+        <button onclick="document.getElementById('report-view').style.display='none'" style="padding:10px 20px; cursor:pointer;">TERUG</button>
+        <button onclick="window.print()" style="padding:10px 30px; background:var(--green); color:white; border:none; font-weight:bold; cursor:pointer; border-radius:5px;">PDF DOWNLOADEN / AFDRUKKEN</button>
     </div>
     <div id="report-content"></div>
 </div>
@@ -173,7 +181,6 @@ const mCtx = mCvs.getContext('2d'), oCtx = oCvs.getContext('2d');
 function openM(id) { document.getElementById(id).classList.add('open'); }
 function closeM(id) { document.getElementById(id).classList.remove('open'); autoSave(); }
 
-// --- MARKER LOGIC ---
 function handleInteraction(e) {
     if(activeIdx === -1) return;
     const r = oCvs.getBoundingClientRect();
@@ -206,7 +213,6 @@ function saveLoc() {
     closeM('loc-modal'); redraw(); renderList(); autoSave();
 }
 
-// --- SYSTEM ---
 function redraw() {
     oCtx.clearRect(0,0,oCvs.width,oCvs.height);
     if(activeIdx !== -1) sheets[activeIdx].locs.forEach((l, i) => {
@@ -214,12 +220,14 @@ function redraw() {
         oCtx.fillStyle="white"; oCtx.font=`bold ${14/scale}px Arial`; oCtx.textAlign="center"; oCtx.fillText(i+1, l.x, l.y+(5/scale));
     });
 }
+
 function renderList() {
     const l = document.getElementById('loc-list'); l.innerHTML = '';
     if(activeIdx !== -1) sheets[activeIdx].locs.forEach((loc, i) => {
         l.innerHTML += `<div class="loc-row" onclick="openLocById(${loc.id})"><span><b>${i+1}.</b> ${loc.naam}</span> <span>${loc.werkwijze.split(':')[0]}</span></div>`;
     });
 }
+
 function openLocById(id) { openLoc(sheets[activeIdx].locs.find(l => l.id === id)); }
 function readLogo(input, type) { const reader = new FileReader(); reader.onload = (e) => { logos[type] = e.target.result; autoSave(); }; reader.readAsDataURL(input.files[0]); }
 
@@ -267,22 +275,22 @@ function deleteLoc() { sheets[activeIdx].locs = sheets[activeIdx].locs.filter(l 
 function setMode(m) { mode = m; document.querySelectorAll('.controls .btn').forEach(b=>b.classList.remove('active')); document.getElementById('m-'+m).classList.add('active'); }
 function zoom(f) { scale *= f; document.getElementById('canvas-wrap').style.transform = `scale(${scale})`; }
 
-// --- REPORT GENERATOR ---
+// --- GENERATE REPORT (WITH SCALING FIX) ---
 async function generateReport() {
     const container = document.getElementById('report-content');
-    container.innerHTML = "Laden...";
+    container.innerHTML = "<p style='padding:50px;'>Bezig met voorbereiden van schaling...</p>";
     document.getElementById('report-view').style.display = 'block';
     const p = { title: document.getElementById('p-title').value, client: document.getElementById('p-client').value, project: document.getElementById('p-name').value, inspector: document.getElementById('p-inspector').value, date: document.getElementById('p-date').value, showCalc: document.getElementById('p-show-calc').checked };
 
     let html = `<div class="cover-page">
         <div>${logos.our ? `<img src="${logos.our}" style="max-height:100px;">` : ''}</div>
         <div>
-            <h1 style="font-size:32pt; margin-bottom:10mm;">${p.title}</h1>
-            ${logos.client ? `<img src="${logos.client}" style="max-height:120px; margin-bottom:10mm;">` : ''}
-            <h2 style="font-size:20pt; color:var(--rust);">${p.project}</h2>
+            <h1 style="font-size:32pt;">${p.title}</h1>
+            ${logos.client ? `<img src="${logos.client}" style="max-height:120px; margin: 20px 0;">` : ''}
+            <h2 style="color:var(--rust);">${p.project}</h2>
         </div>
         <div style="width:100%; text-align:left; border-top:2px solid #000; padding-top:10mm;">
-            <p><b>Klant:</b> ${p.client}</p><p><b>Inspecteur:</b> ${p.inspector}</p><p><b>Datum:</b> ${p.date}</p>
+            <p><b>Opdrachtgever:</b> ${p.client}</p><p><b>Inspecteur:</b> ${p.inspector}</p><p><b>Datum:</b> ${p.date}</p>
         </div>
     </div>`;
 
@@ -294,7 +302,7 @@ async function generateReport() {
                 canvas.width = img.width; canvas.height = img.height; ctx.drawImage(img, 0, 0);
                 s.locs.forEach((l, idx) => {
                     ctx.beginPath(); ctx.arc(l.x, l.y, 25, 0, Math.PI*2); ctx.fillStyle = l.color; ctx.fill();
-                    ctx.fillStyle="white"; ctx.font="bold 26px Arial"; ctx.textAlign="center"; ctx.fillText(idx+1, l.x, l.y+10);
+                    ctx.fillStyle="white"; ctx.font="bold 28px Arial"; ctx.textAlign="center"; ctx.fillText(idx+1, l.x, l.y+10);
                     summary[l.werkwijze] = summary[l.werkwijze] || {c:0, u:0, m:0};
                     summary[l.werkwijze].c++; summary[l.werkwijze].u += l.uren; summary[l.werkwijze].m += l.mat;
                 });
@@ -302,38 +310,44 @@ async function generateReport() {
             }; img.src = s.imgData;
         });
         
-        html += `<div class="report-page page-break"><h2 style="background:var(--ink); color:white; padding:10px;">Gevel: ${s.name}</h2>
-        <img src="${screenshot}" style="width:100%; border:1px solid #ccc; margin:15px 0;">`;
+        html += `<div class="page-break" style="padding:10mm;">
+            <h2 style="background:var(--ink); color:white; padding:10px;">Gevel: ${s.name}</h2>
+            <img src="${screenshot}" class="report-img-main">`;
+        
         s.locs.forEach((l, idx) => {
-            html += `<div class="loc-block" style="--bc:${l.color}"><h3>${idx+1}. ${l.naam}</h3><p><b>Maatregel:</b> ${l.werkwijze}</p>
-            ${p.showCalc ? `<p style="color:var(--rust); font-size:12px;"><b>Calculatie:</b> ${l.uren} uren | € ${l.mat} materiaal</p>` : ''}
-            <p><b>Opmerking:</b> ${l.desc || '-'}</p><div class="photo-grid-rep">${l.fotos.map(f=>`<img src="${f}">`).join('')}</div></div>`;
+            html += `<div class="loc-block" style="--bc:${l.color}">
+                <h3>${idx+1}. ${l.naam}</h3>
+                <p><b>Maatregel:</b> ${l.werkwijze}</p>
+                ${p.showCalc ? `<p style="color:var(--rust); font-size:11px;"><b>Calculatie:</b> ${l.uren} uren | € ${l.mat}</p>` : ''}
+                <p><b>Opmerking:</b> ${l.desc || '-'}</p>
+                <div class="photo-grid-rep">${l.fotos.map(f=>`<img src="${f}">`).join('')}</div>
+            </div>`;
         });
         html += `</div>`;
     }
 
-    html += `<div class="report-page page-break"><h2>SAMENVATTING MAATREGELEN</h2><table><thead><tr><th>Code</th><th>Omschrijving</th><th>Aantal</th>${p.showCalc ? `<th>Uren</th><th>Materiaal</th>` : ''}</tr></thead><tbody>`;
+    // Samenvatting
+    html += `<div class="page-break" style="padding:10mm;">
+        <h2>SAMENVATTING MAATREGELEN</h2>
+        <table><thead><tr><th>Code</th><th>Omschrijving</th><th>Aantal</th>${p.showCalc ? `<th>Uren</th><th>Materiaal</th>` : ''}</tr></thead><tbody>`;
     Object.keys(summary).sort().forEach(k => {
         html += `<tr><td><b>${k.split(':')[0]}</b></td><td>${k.split(': ')[1]}</td><td>${summary[k].c}</td>${p.showCalc ? `<td>${summary[k].u}</td><td>€ ${summary[k].m}</td>` : ''}</tr>`;
     });
     html += `</tbody></table></div>`;
+
     container.innerHTML = html;
 }
 
-// --- PERSISTENCE ---
-function autoSave() {
-    const data = { sheets, logos, meta: { title: document.getElementById('p-title').value, client: document.getElementById('p-client').value, project: document.getElementById('p-name').value, inspector: document.getElementById('p-inspector').value, date: document.getElementById('p-date').value, showCalc: document.getElementById('p-show-calc').checked }};
-    localStorage.setItem('inspector_v14_5', JSON.stringify(data));
-}
+function autoSave() { localStorage.setItem('inspector_v14_6', JSON.stringify({ sheets, logos, meta: { title: document.getElementById('p-title').value, client: document.getElementById('p-client').value, project: document.getElementById('p-name').value, inspector: document.getElementById('p-inspector').value, date: document.getElementById('p-date').value, showCalc: document.getElementById('p-show-calc').checked }})); }
 function loadData() {
-    const saved = localStorage.getItem('inspector_v14_5'); if(!saved) return;
+    const saved = localStorage.getItem('inspector_v14_6'); if(!saved) return;
     const d = JSON.parse(saved); sheets = d.sheets || []; logos = d.logos || {our:null, client:null};
     if(d.meta) { document.getElementById('p-title').value = d.meta.title; document.getElementById('p-client').value = d.meta.client; document.getElementById('p-name').value = d.meta.project; document.getElementById('p-inspector').value = d.meta.inspector; document.getElementById('p-date').value = d.meta.date; document.getElementById('p-show-calc').checked = d.meta.showCalc; }
     if(sheets.length > 0) switchSheet(0);
 }
 
-function exportProject() { const b = new Blob([localStorage.getItem('inspector_v14_5')], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `Project.json`; a.click(); }
-function importProject(e) { const r = new FileReader(); r.onload = (ev) => { localStorage.setItem('inspector_v14_5', ev.target.result); location.reload(); }; r.readAsText(e.target.files[0]); }
+function exportProject() { const b = new Blob([localStorage.getItem('inspector_v14_6')], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `Project.json`; a.click(); }
+function importProject(e) { const r = new FileReader(); r.onload = (ev) => { localStorage.setItem('inspector_v14_6', ev.target.result); location.reload(); }; r.readAsText(e.target.files[0]); }
 
 oCvs.addEventListener('mousedown', handleInteraction);
 oCvs.addEventListener('touchstart', (e) => { e.preventDefault(); handleInteraction(e); }, {passive:false});
