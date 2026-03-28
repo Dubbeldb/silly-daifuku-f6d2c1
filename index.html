@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Inspector Pro V13.0 - Full Enterprise Report</title>
+<title>Inspector Pro V13.1 - Calculation & Print Fix</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
     :root { --rust: #bf4020; --ink: #1c1814; --green: #3d6b38; --light: #f4f4f4; }
@@ -38,36 +38,35 @@
     .btn-main { background: var(--rust); color: white; font-weight: bold; border: none; width: 100%; padding: 14px; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
 
     /* Report Engine */
-    #report-view { display: none; position: fixed; inset: 0; background: #333; z-index: 5000; overflow-y: auto; }
-    .report-ui { padding: 15px; background: #eee; border-bottom: 1px solid #ccc; position: sticky; top: 0; display: flex; gap: 10px; z-index: 5001; }
-    #report-content { width: 210mm; margin: 20px auto; background: white; padding: 0; min-height: 297mm; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+    #report-view { display: none; position: fixed; inset: 0; background: #333; z-index: 5000; overflow-y: auto; padding: 20px 0; }
+    .report-ui { width: 210mm; margin: 0 auto 10px auto; display: flex; gap: 10px; }
+    #report-content { width: 210mm; margin: 0 auto; background: white; }
 
-    /* Print Specifics */
+    /* Print CSS */
     @media print {
-        @page { size: A4; margin: 0; }
-        body { overflow: visible !important; }
+        body { overflow: visible !important; height: auto !important; }
         .report-ui, .topbar, .sheet-bar, .controls, .footer-list, .modal-bg { display: none !important; }
-        #report-view { display: block !important; position: static !important; width: 100% !important; background: white; }
-        #report-content { margin: 0; width: 100%; box-shadow: none; }
-        .page-break { page-break-before: always; }
-        .cover-page { height: 297mm; display: flex; flex-direction: column; justify-content: space-between; padding: 40mm 20mm; text-align: center; }
-        .report-page { padding: 20mm; min-height: 297mm; }
-        .loc-block { break-inside: avoid; border: 1px solid #eee; padding: 15px; margin-bottom: 20px; border-left: 10px solid var(--border-color); }
+        #report-view { display: block !important; position: absolute !important; top:0; left:0; width: 100% !important; background: white; padding: 0; overflow: visible; }
+        #report-content { width: 100%; margin: 0; box-shadow: none; overflow: visible; }
+        .page-break { page-break-before: always; display: block; clear: both; }
+        .cover-page { height: 290mm; display: flex; flex-direction: column; justify-content: space-between; padding: 30mm 20mm; }
+        .report-page { padding: 15mm; min-height: 290mm; page-break-after: always; }
+        .loc-block { break-inside: avoid; border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-left: 10px solid var(--bc); }
         .photo-grid-rep { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .photo-grid-rep img { width: 100%; height: 220px; object-fit: cover; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background: #f4f4f4; }
+        .photo-grid-rep img { width: 100%; height: 200px; object-fit: cover; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background: #eee; }
     }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-    <span style="font-weight: 800;">INSPECTOR PRO v13.0</span>
+    <span style="font-weight: 800;">INSPECTOR PRO v13.1</span>
     <div>
-        <button onclick="openM('project-modal')" style="background:none; color:white; border:1px solid white; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:12px;">PROJECT DATA & LOGO'S</button>
-        <button onclick="generateReport()" style="background: var(--green); color: white; border: none; padding: 9px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size:12px;">GENEREER RAPPORT</button>
+        <button onclick="openM('project-modal')" style="background:none; color:white; border:1px solid white; padding:8px 12px; border-radius:6px; cursor:pointer;">PROJECT DATA</button>
+        <button onclick="generateReport()" style="background: var(--green); color: white; border: none; padding: 9px 15px; border-radius: 6px; font-weight: bold; cursor: pointer;">BEKIJK RAPPORT</button>
     </div>
 </div>
 
@@ -96,84 +95,74 @@
     <div class="modal">
         <h3>Projectinstellingen</h3>
         <label>Rapport Titel</label><input type="text" id="p-title" value="INSPECTIERAPPORT HOUTROT">
-        <label>Opdrachtgever</label><input type="text" id="p-client" placeholder="Naam klant">
-        <label>Projectnaam / Adres</label><input type="text" id="p-name" placeholder="Locatie">
-        <label>Inspecteur</label><input type="text" id="p-inspector" placeholder="Uw naam">
+        <label>Opdrachtgever</label><input type="text" id="p-client">
+        <label>Projectlocatie</label><input type="text" id="p-name">
+        <label>Inspecteur</label><input type="text" id="p-inspector">
         <label>Datum</label><input type="date" id="p-date">
         
+        <div style="background: #f9f9f9; padding: 10px; border-radius: 6px; margin: 10px 0; border: 1px solid #eee;">
+            <label style="color:var(--rust); margin-bottom: 5px; display: block;">Calculatie Opties</label>
+            <label style="text-transform: none; display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="p-show-calc" style="width: auto; margin: 0;"> Toon uren en materiaal in rapport
+            </label>
+        </div>
+
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div>
-                <label>Ons Bedrijfslogo</label>
-                <input type="file" accept="image/*" onchange="readLogo(this, 'our-logo')">
-            </div>
-            <div>
-                <label>Logo Opdrachtgever</label>
-                <input type="file" accept="image/*" onchange="readLogo(this, 'client-logo')">
-            </div>
+            <div><label>Ons Logo</label><input type="file" onchange="readLogo(this, 'our')"></div>
+            <div><label>Logo Opdrachtgever</label><input type="file" onchange="readLogo(this, 'client')"></div>
         </div>
         <button class="btn-main" onclick="closeM('project-modal')">OPSLAAN</button>
     </div>
 </div>
 
-<div class="modal-bg" id="name-modal">
-    <div class="modal">
-        <h3>Nieuwe Tekening</h3>
-        <label>Naam gevel / onderdeel</label>
-        <input type="text" id="new-sheet-name">
-        <button class="btn-main" onclick="confirmSheet()">TOEVOEGEN</button>
-    </div>
-</div>
-
 <div class="modal-bg" id="loc-modal">
     <div class="modal">
-        <h3>Details Inspectiepunt</h3>
+        <h3>Inspectiepunt</h3>
         <label>Urgentie</label>
         <select id="m-color-sel">
             <option value="#ef4444">Rood - Direct herstel</option>
             <option value="#f59e0b">Oranje - Onderhoud</option>
             <option value="#3b82f6">Blauw - Monitoring</option>
-            <option value="#10b981">Groen - OK</option>
         </select>
-        <label>Onderdeel</label><input type="text" id="m-naam" placeholder="Bijv. Onderdorpel">
-        <label>Maatregel (Repair Care)</label>
+        <label>Onderdeel</label><input type="text" id="m-naam" placeholder="Bijv. Rechter stijl">
+        <label>Maatregel</label>
         <select id="m-werkwijze">
-            <optgroup label="Preventief (P)">
-                <option value="P2: Afdichten van naden en verbindingen (buiten)">P2: Afdichten naden/verbindingen</option>
-                <option value="P3: Afdichten van aansluiting stijl met neut">P3: Stijl/neut aansluiting</option>
-                <option value="P4: Herstellen van scheuren">P4: Herstellen scheuren</option>
-                <option value="P5: Herstellen van natuurlijke gebreken">P5: Natuurlijke gebreken</option>
-                <option value="P6: Afdichten van kale/kopse kanten">P6: Kale/kopse kanten</option>
-                <option value="P7: Afronden van verweerde/scherpe kanten">P7: Afronden kanten</option>
-                <option value="P8: Corrigeren omtrekspeling draaiende delen">P8: Omtrekspeling</option>
-                <option value="P9: Herstellen oppervlaktebeschadigingen">P9: Oppervlakte schade</option>
-                <option value="P10: Afdichten van verbindingen (binnen)">P10: Verbindingen binnen</option>
-                <option value="P11: Herstellen gedelamineerd geveltimmerwerk">P11: Delaminatie/Haarscheuren</option>
-                <option value="P12: Detailverbetering aansluiting onderdorpels">P12: Detailverbetering</option>
-            </optgroup>
-            <optgroup label="Correctief (C)">
-                <option value="C1: Herstellen van aangetast hout">C1: Houtrot herstel</option>
-                <option value="C2: Herstellen aangetast hout (lamineren)">C2: Lamineren</option>
-                <option value="C4: Herstellen aangetast hout (deelvervanging)">C4: Deelvervanging</option>
-            </optgroup>
-            <optgroup label="Beglazing (PG)">
-                <option value="PG1: Vervangen ondeugdelijke kitvoegen">PG1: Kitvoegen vervangen</option>
-                <option value="PG2: Vervangen ondeugdelijke stopverfkanten">PG2: Stopverf vervangen</option>
-                <option value="PG6: Aanbrengen van geventileerde neuslatten">PG6: Neuslatten aanbrengen</option>
-            </optgroup>
+            <option value="P2: Afdichten van naden en verbindingen (buiten)">P2: Afdichten naden/verbindingen</option>
+            <option value="P3: Afdichten van aansluiting stijl met neut">P3: Stijl/neut aansluiting</option>
+            <option value="P4: Herstellen van scheuren">P4: Herstellen scheuren</option>
+            <option value="C1: Herstellen van aangetast hout">C1: Houtrot herstel</option>
+            <option value="C2: Herstellen door lamineren">C2: Lamineren</option>
+            <option value="C4: Herstellen door deelvervanging">C4: Deelvervanging</option>
+            <option value="PG1: Vervangen kitvoegen">PG1: Kitvoegen</option>
+            <option value="PG6: Geventileerde neuslatten">PG6: Neuslatten</option>
         </select>
-        <label>Toelichting</label><textarea id="m-desc" rows="2"></textarea>
-        <button onclick="document.getElementById('ph-in').click()" style="width:100%; padding:10px; border:1px dashed #666; cursor:pointer;">📸 Voeg Foto's Toe</button>
-        <input type="file" id="ph-in" multiple accept="image/*" style="display:none" onchange="addPh(event)">
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div><label>Uren (inschatting)</label><input type="number" id="m-uren" step="0.5" value="0"></div>
+            <div><label>Materiaal (€)</label><input type="number" id="m-mat" step="1" value="0"></div>
+        </div>
+
+        <label>Opmerkingen</label><textarea id="m-desc" rows="2"></textarea>
+        <button onclick="document.getElementById('ph-in').click()" style="width:100%; padding:10px; border:1px dashed #666; cursor:pointer;">📸 Foto's</button>
+        <input type="file" id="ph-in" multiple style="display:none" onchange="addPh(event)">
         <div id="ph-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:10px;"></div>
-        <button class="btn-main" onclick="saveLoc()">OPSLAAN</button>
-        <button onclick="deleteLoc()" style="width:100%; border:none; background:none; color:red; margin-top:10px; cursor:pointer;">Verwijder punt</button>
+        <button class="btn-main" onclick="saveLoc()">PUNT OPSLAAN</button>
+        <button onclick="deleteLoc()" style="width:100%; border:none; background:none; color:red; margin-top:10px; cursor:pointer;">Verwijderen</button>
+    </div>
+</div>
+
+<div class="modal-bg" id="name-modal">
+    <div class="modal">
+        <h3>Gevel benoemen</h3>
+        <input type="text" id="new-sheet-name">
+        <button class="btn-main" onclick="confirmSheet()">START</button>
     </div>
 </div>
 
 <div id="report-view">
     <div class="report-ui">
-        <button onclick="document.getElementById('report-view').style.display='none'" style="flex:1; padding:12px; background:#333; color:white; border:none; border-radius:8px;">← TERUG</button>
-        <button onclick="window.print()" style="flex:2; padding:12px; background:var(--green); color:white; border:none; border-radius:8px; font-weight:bold;">OPSLAAN ALS PDF</button>
+        <button onclick="document.getElementById('report-view').style.display='none'" style="padding:10px 20px; cursor:pointer;">← SLUITEN</button>
+        <button onclick="window.print()" style="padding:10px 20px; background:var(--green); color:white; border:none; font-weight:bold; cursor:pointer;">AFDRUKKEN / PDF OPSLAAN</button>
     </div>
     <div id="report-content"></div>
 </div>
@@ -185,10 +174,6 @@ let sheets = [], activeIdx = -1, mode = 'mark', scale = 1, activeDrag = null;
 let pendingFile = null;
 let logos = { our: null, client: null };
 
-const mCvs = document.getElementById('main-canvas'), oCvs = document.getElementById('overlay-canvas');
-const mCtx = mCvs.getContext('2d'), oCtx = oCvs.getContext('2d');
-const wrap = document.getElementById('canvas-wrap');
-
 document.getElementById('p-date').valueAsDate = new Date();
 
 function openM(id) { document.getElementById(id).classList.add('open'); }
@@ -196,10 +181,7 @@ function closeM(id) { document.getElementById(id).classList.remove('open'); }
 
 function readLogo(input, type) {
     const reader = new FileReader();
-    reader.onload = e => { 
-        if(type==='our-logo') logos.our = e.target.result;
-        else logos.client = e.target.result;
-    };
+    reader.onload = e => { logos[type] = e.target.result; };
     reader.readAsDataURL(input.files[0]);
 }
 
@@ -213,7 +195,7 @@ function handleFile(e) {
 
 async function confirmSheet() {
     const file = pendingFile;
-    const name = document.getElementById('new-sheet-name').value || file.name;
+    const name = document.getElementById('new-sheet-name').value;
     const reader = new FileReader();
     closeM('name-modal');
 
@@ -227,9 +209,7 @@ async function confirmSheet() {
             tCvs.width = vp.width; tCvs.height = vp.height;
             await page.render({canvasContext: tCvs.getContext('2d'), viewport: vp}).promise;
             imgData = tCvs.toDataURL('image/jpeg', 0.8);
-        } else {
-            imgData = ev.target.result;
-        }
+        } else { imgData = ev.target.result; }
         sheets.push({ name: name, locs: [], imgData: imgData });
         switchSheet(sheets.length - 1);
     };
@@ -241,9 +221,10 @@ function switchSheet(idx) {
     activeIdx = idx;
     const img = new Image();
     img.onload = () => {
-        mCvs.width = oCvs.width = img.width;
-        mCvs.height = oCvs.height = img.height;
-        mCtx.drawImage(img, 0, 0);
+        const cvs = document.getElementById('main-canvas'), ocvs = document.getElementById('overlay-canvas');
+        cvs.width = ocvs.width = img.width;
+        cvs.height = ocvs.height = img.height;
+        cvs.getContext('2d').drawImage(img, 0, 0);
         scale = (document.querySelector('.viewport').clientWidth - 40) / img.width;
         updateTabs(); renderList(); redraw(); zoom(1);
     };
@@ -268,15 +249,13 @@ function setMode(m) {
     document.getElementById('m-drag').classList.toggle('active', m === 'drag');
 }
 
-function zoom(f) { scale *= f; wrap.style.transform = `scale(${scale})`; }
+function zoom(f) { scale *= f; document.getElementById('canvas-wrap').style.transform = `scale(${scale})`; }
 
 function handleInteraction(e) {
     if(activeIdx === -1) return;
-    const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
-    const clientY = (e.touches ? e.touches[0].clientY : e.clientY);
-    const r = oCvs.getBoundingClientRect();
-    const x = (clientX - r.left) / scale;
-    const y = (clientY - r.top) / scale;
+    const rect = document.getElementById('overlay-canvas').getBoundingClientRect();
+    const x = ((e.touches ? e.touches[0].clientX : e.clientX) - rect.left) / scale;
+    const y = ((e.touches ? e.touches[0].clientY : e.clientY) - rect.top) / scale;
     const hit = sheets[activeIdx].locs.find(l => Math.hypot(l.x - x, l.y - y) < 25/scale);
     
     if (e.type === 'mousedown' || e.type === 'touchstart') {
@@ -284,17 +263,14 @@ function handleInteraction(e) {
         else if(mode === 'mark') hit ? openLoc(hit) : openLoc(null, x, y);
     } else if ((e.type === 'mousemove' || e.type === 'touchmove') && activeDrag) {
         activeDrag.x = x; activeDrag.y = y; redraw();
-    } else {
-        if(activeDrag) renderList();
-        activeDrag = null;
-    }
+    } else { activeDrag = null; }
 }
-oCvs.addEventListener('mousedown', handleInteraction);
+const ocvs = document.getElementById('overlay-canvas');
+ocvs.addEventListener('mousedown', handleInteraction);
 window.addEventListener('mousemove', handleInteraction);
 window.addEventListener('mouseup', handleInteraction);
-oCvs.addEventListener('touchstart', handleInteraction, {passive: false});
-oCvs.addEventListener('touchmove', handleInteraction, {passive: false});
-oCvs.addEventListener('touchend', handleInteraction);
+ocvs.addEventListener('touchstart', handleInteraction, {passive: false});
+ocvs.addEventListener('touchmove', handleInteraction, {passive: false});
 
 let curId = null, curX, curY, curPh = [];
 function openLoc(l, x, y) {
@@ -302,6 +278,8 @@ function openLoc(l, x, y) {
     curPh = l ? [...l.fotos] : [];
     document.getElementById('m-naam').value = l ? l.naam : "";
     document.getElementById('m-desc').value = l ? l.desc : "";
+    document.getElementById('m-uren').value = l ? l.uren : 0;
+    document.getElementById('m-mat').value = l ? l.mat : 0;
     document.getElementById('m-werkwijze').value = l ? l.werkwijze : "P2: Afdichten van naden en verbindingen (buiten)";
     document.getElementById('m-color-sel').value = l ? l.color : "#ef4444";
     renderPh(); openM('loc-modal');
@@ -311,10 +289,9 @@ function saveLoc() {
     const s = sheets[activeIdx];
     const d = { 
         id: curId || Date.now(), x: curId ? s.locs.find(l=>l.id===curId).x : curX, y: curId ? s.locs.find(l=>l.id===curId).y : curY, 
-        naam: document.getElementById('m-naam').value || "Onderdeel", 
-        desc: document.getElementById('m-desc').value, 
-        werkwijze: document.getElementById('m-werkwijze').value,
-        color: document.getElementById('m-color-sel').value, fotos: [...curPh] 
+        naam: document.getElementById('m-naam').value || "Punt", desc: document.getElementById('m-desc').value, 
+        werkwijze: document.getElementById('m-werkwijze').value, uren: parseFloat(document.getElementById('m-uren').value) || 0,
+        mat: parseFloat(document.getElementById('m-mat').value) || 0, color: document.getElementById('m-color-sel').value, fotos: [...curPh] 
     };
     if(curId) s.locs = s.locs.map(l => l.id === curId ? d : l);
     else s.locs.push(d);
@@ -322,7 +299,6 @@ function saveLoc() {
 }
 
 function deleteLoc() { sheets[activeIdx].locs = sheets[activeIdx].locs.filter(l => l.id !== curId); closeM('loc-modal'); redraw(); renderList(); }
-
 function addPh(e) {
     [...e.target.files].forEach(f => {
         const r = new FileReader();
@@ -330,24 +306,21 @@ function addPh(e) {
         r.readAsDataURL(f);
     });
 }
-
 function renderPh() {
     const g = document.getElementById('ph-grid'); g.innerHTML = '';
-    curPh.forEach(p => g.innerHTML += `<img src="${p}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:4px;">`);
+    curPh.forEach(p => g.innerHTML += `<img src="${p}" style="width:100%; aspect-ratio:1; object-fit:cover;">`);
 }
-
 function redraw() {
-    oCtx.clearRect(0,0,oCvs.width,oCvs.height);
+    const ctx = document.getElementById('overlay-canvas').getContext('2d');
+    ctx.clearRect(0,0,ocvs.width,ocvs.height);
     if(activeIdx === -1) return;
     sheets[activeIdx].locs.forEach((l, i) => {
-        oCtx.beginPath(); oCtx.arc(l.x, l.y, 18/scale, 0, Math.PI*2);
-        oCtx.fillStyle = l.color; oCtx.fill();
-        oCtx.strokeStyle="white"; oCtx.lineWidth = 2/scale; oCtx.stroke();
-        oCtx.fillStyle="white"; oCtx.font=`bold ${14/scale}px Arial`; oCtx.textAlign="center";
-        oCtx.fillText(i+1, l.x, l.y + (5/scale));
+        ctx.beginPath(); ctx.arc(l.x, l.y, 18/scale, 0, Math.PI*2);
+        ctx.fillStyle = l.color; ctx.fill();
+        ctx.fillStyle="white"; ctx.font=`bold ${14/scale}px Arial`; ctx.textAlign="center";
+        ctx.fillText(i+1, l.x, l.y + (5/scale));
     });
 }
-
 function renderList() {
     const l = document.getElementById('loc-list'); l.innerHTML = '';
     if(activeIdx === -1) return;
@@ -359,7 +332,7 @@ function openLocById(id) { openLoc(sheets[activeIdx].locs.find(l => l.id === id)
 
 async function generateReport() {
     const container = document.getElementById('report-content');
-    container.innerHTML = "<p style='padding:40px;'>Bezig met opbouwen van het rapport...</p>";
+    container.innerHTML = "<p style='padding:40px;'>Rapport genereren...</p>";
     document.getElementById('report-view').style.display = 'block';
 
     const pData = {
@@ -367,102 +340,88 @@ async function generateReport() {
         client: document.getElementById('p-client').value || "-",
         project: document.getElementById('p-name').value || "-",
         inspector: document.getElementById('p-inspector').value || "-",
-        date: document.getElementById('p-date').value
+        date: document.getElementById('p-date').value,
+        showCalc: document.getElementById('p-show-calc').checked
     };
 
-    // 1. Cover Page
     let html = `
         <div class="cover-page">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                ${logos.our ? `<img src="${logos.our}" style="max-height:60px;">` : '<div></div>'}
-                ${logos.client ? `<img src="${logos.client}" style="max-height:60px;">` : '<div></div>'}
+            <div style="text-align:left;">${logos.our ? `<img src="${logos.our}" style="max-height:80px;">` : ''}</div>
+            <div style="text-align:center; margin: 40mm 0;">
+                <h1 style="font-size: 38pt;">${pData.title}</h1>
+                ${logos.client ? `<img src="${logos.client}" style="max-height:100px; margin-top:20px;">` : ''}
+                <h2 style="font-size: 20pt; color: #bf4020; margin-top: 10px;">${pData.project}</h2>
             </div>
-            <div>
-                <h1 style="font-size: 42pt; margin-bottom: 10mm; letter-spacing: 2px;">${pData.title}</h1>
-                <h2 style="font-size: 20pt; color: #bf4020; margin-bottom: 20mm;">${pData.project}</h2>
-            </div>
-            <div style="text-align: left; font-size: 16pt; border-top: 3px solid #1c1814; padding-top: 15mm;">
-                <p style="margin-bottom:8px;"><b>Opdrachtgever:</b> ${pData.client}</p>
-                <p style="margin-bottom:8px;"><b>Inspecteur:</b> ${pData.inspector}</p>
+            <div style="border-top: 2px solid #1c1814; padding-top: 10mm;">
+                <p><b>Opdrachtgever:</b> ${pData.client}</p>
+                <p><b>Inspecteur:</b> ${pData.inspector}</p>
                 <p><b>Datum:</b> ${pData.date}</p>
             </div>
         </div>
     `;
 
-    // 2. Drawings and Details
     let stats = {};
+    let totalUren = 0, totalMat = 0;
+
     for(let s of sheets) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const img = new Image();
-        
-        const screenshot = await new Promise(resolve => {
+        const screenshot = await new Promise(res => {
             img.onload = () => {
                 canvas.width = img.width; canvas.height = img.height;
                 ctx.drawImage(img, 0, 0);
                 s.locs.forEach((l, idx) => {
                     ctx.beginPath(); ctx.arc(l.x, l.y, 25, 0, Math.PI*2);
                     ctx.fillStyle = l.color; ctx.fill();
-                    ctx.strokeStyle="white"; ctx.lineWidth=5; ctx.stroke();
                     ctx.fillStyle="white"; ctx.font="bold 28px Arial"; ctx.textAlign="center";
                     ctx.fillText(idx+1, l.x, l.y+10);
-                    // Count for stats
-                    stats[l.werkwijze] = (stats[l.werkwijze] || 0) + 1;
+                    stats[l.werkwijze] = stats[l.werkwijze] || {c:0, u:0, m:0};
+                    stats[l.werkwijze].c++; stats[l.werkwijze].u += l.uren; stats[l.werkwijze].m += l.mat;
+                    totalUren += l.uren; totalMat += l.mat;
                 });
-                resolve(canvas.toDataURL('image/jpeg', 0.8));
+                res(canvas.toDataURL('image/jpeg', 0.8));
             };
             img.src = s.imgData;
         });
 
         html += `<div class="report-page page-break">
-            <h2 style="background: #1c1814; color: white; padding: 10px 20px; margin-bottom:10px;">Gevel: ${s.name}</h2>
-            <img src="${screenshot}" style="width:100%; border:1px solid #ccc; margin-bottom:20px;">
+            <h2 style="background: #1c1814; color: white; padding: 10px;">Gevel: ${s.name}</h2>
+            <img src="${screenshot}" style="width:100%; border:1px solid #ccc; margin: 10px 0;">
         `;
         
         for(let [idx, l] of s.locs.entries()) {
             html += `
-            <div class="loc-block" style="--border-color: ${l.color};">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <h3 style="margin:0;">${idx+1}. ${l.naam}</h3>
-                    <span style="font-weight:bold; color:${l.color};">${l.werkwijze.split(':')[0]}</span>
-                </div>
+            <div class="loc-block" style="--bc: ${l.color};">
+                <h3 style="margin:0;">${idx+1}. ${l.naam}</h3>
                 <p><b>Maatregel:</b> ${l.werkwijze}</p>
-                <p style="margin:5px 0 10px 0;"><b>Opmerkingen:</b> ${l.desc || 'Geen'}</p>
-                <div class="photo-grid-rep">
-                    ${l.fotos.map(f => `<img src="${f}">`).join('')}
-                </div>
+                ${pData.showCalc ? `<p style="color:var(--rust); font-size:11px;"><b>Calculatie:</b> ${l.uren} uren | € ${l.mat} materiaal</p>` : ''}
+                <p><b>Opmerkingen:</b> ${l.desc || '-'}</p>
+                <div class="photo-grid-rep">${l.fotos.map(f => `<img src="${f}">`).join('')}</div>
             </div>`;
         }
         html += `</div>`;
     }
 
-    // 3. Summary Table
-    html += `
-        <div class="report-page page-break">
-            <h2 style="border-bottom: 3px solid #1c1814; padding-bottom:10px; margin-bottom:20px;">SAMENVATTING MAATREGELEN</h2>
-            <table>
-                <thead>
+    html += `<div class="report-page page-break">
+        <h2>SAMENVATTING</h2>
+        <table>
+            <thead>
+                <tr><th>Code</th><th>Omschrijving</th><th style="text-align:center;">Aantal</th>
+                ${pData.showCalc ? `<th>Uren</th><th>Materiaal</th>` : ''}</tr>
+            </thead>
+            <tbody>
+                ${Object.keys(stats).sort().map(k => `
                     <tr>
-                        <th>Code</th>
-                        <th>Omschrijving Maatregel</th>
-                        <th style="text-align:center;">Aantal</th>
+                        <td><b>${k.split(':')[0]}</b></td><td>${k.split(': ')[1]}</td>
+                        <td style="text-align:center;">${stats[k].c}</td>
+                        ${pData.showCalc ? `<td>${stats[k].u}</td><td>€ ${stats[k].m}</td>` : ''}
                     </tr>
-                </thead>
-                <tbody>
-                    ${Object.keys(stats).sort().map(k => `
-                        <tr>
-                            <td><b>${k.split(':')[0]}</b></td>
-                            <td>${k.split(': ')[1]}</td>
-                            <td style="text-align:center;"><b>${stats[k]}</b></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-            <div style="margin-top:40px; font-size:12px; color:#666;">
-                Totaal aantal inspectiepunten: ${Object.values(stats).reduce((a, b) => a + b, 0)}
-            </div>
-        </div>
-    `;
+                `).join('')}
+            </tbody>
+            ${pData.showCalc ? `<tfoot><tr><th colspan="3">TOTALEN</th><th>${totalUren} u</th><th>€ ${totalMat}</th></tr></tfoot>` : ''}
+        </table>
+    </div>`;
 
     container.innerHTML = html;
 }
