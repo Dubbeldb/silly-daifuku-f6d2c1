@@ -3,21 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Inspector Pro V15.1 - PDF & Print Fix</title>
+<title>Inspector Pro V15.2 - Full Feature Restore</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
     :root { --rust: #bf4020; --ink: #1c1814; --green: #3d6b38; --light: #f4f4f4; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', sans-serif; background: var(--light); color: var(--ink); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--light); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
     .no-print { display: flex; flex-direction: column; height: 100%; }
-    .topbar { background: var(--ink); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+    .topbar { background: var(--ink); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 1001; }
     .sheet-bar { background: #e0e0e0; padding: 10px; display: flex; gap: 8px; overflow-x: auto; border-bottom: 1px solid #ccc; align-items: center; min-height: 55px; }
     .sheet-tab { padding: 8px 15px; background: #bbb; border-radius: 6px; font-size: 11px; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
     .sheet-tab.active { background: var(--rust); color: white; }
-    
+    .rename-btn { background: rgba(0,0,0,0.1); border: none; border-radius: 3px; cursor: pointer; padding: 2px 6px; }
+
     .viewport { flex: 1; position: relative; overflow: auto; background: #555; display: flex; justify-content: center; align-items: flex-start; }
-    #canvas-wrap { position: relative; background: white; transform-origin: 0 0; margin: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+    #canvas-wrap { position: relative; background: white; transform-origin: 0 0; margin: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.5); transition: transform 0.1s ease; }
     #overlay-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
 
     .controls { position: fixed; bottom: 150px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; }
@@ -47,12 +48,15 @@
 
 <div class="no-print">
     <div class="topbar">
-        <span style="font-weight: 900;">INSPECTOR PRO V15.1</span>
-        <button onclick="generateReport()" style="background: var(--green); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">MAAK RAPPORT</button>
+        <span style="font-weight: 900;">INSPECTOR PRO V15.2</span>
+        <div>
+            <button onclick="openM('project-modal')" style="background:none; color:white; border:1px solid white; padding:6px 12px; border-radius:4px; cursor:pointer;">PROJECT DATA</button>
+            <button onclick="generateReport()" style="background: var(--green); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-left: 10px;">MAAK RAPPORT</button>
+        </div>
     </div>
 
     <div class="sheet-bar" id="sheet-tabs">
-        <button onclick="document.getElementById('file-in').click()" style="background:black; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">+ VOEG TEKENING TOE</button>
+        <button onclick="document.getElementById('file-in').click()" style="background:black; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">+ TEKENING</button>
     </div>
     <input type="file" id="file-in" accept="image/*,application/pdf" style="display:none" onchange="handleFile(event)">
 
@@ -63,7 +67,50 @@
         </div>
     </div>
 
+    <div class="controls">
+        <button class="btn-round active" id="m-mark" onclick="setMode('mark')">📍</button>
+        <button class="btn-round" id="m-drag" onclick="setMode('drag')">✢</button>
+        <button class="btn-round" onclick="changeZoom(1.2)">➕</button>
+        <button class="btn-round" onclick="changeZoom(0.8)">➖</button>
+    </div>
+
     <div class="footer-list" id="loc-list"></div>
+</div>
+
+<div class="modal-bg" id="project-modal">
+    <div class="modal">
+        <h3>Projectgegevens</h3>
+        <input type="text" id="p-title" value="INSPECTIERAPPORT HOUTROT" placeholder="Titel">
+        <input type="text" id="p-client" placeholder="Opdrachtgever">
+        <input type="text" id="p-name" placeholder="Projectlocatie">
+        <input type="text" id="p-inspector" placeholder="Inspecteur">
+        <input type="date" id="p-date">
+        <label style="font-size: 13px;"><input type="checkbox" id="p-calc" checked> Toon calculatie in rapport</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+            <div><small>Uw Logo</small><input type="file" onchange="readLogo(this, 'our')"></div>
+            <div><small>Klant Logo</small><input type="file" onchange="readLogo(this, 'client')"></div>
+        </div>
+        <button onclick="closeM('project-modal')" style="width:100%; padding:15px; background:var(--rust); color:white; border:none; border-radius:8px; margin-top:10px; cursor:pointer;">OPSLAAN</button>
+    </div>
+</div>
+
+<div class="modal-bg" id="loc-modal">
+    <div class="modal">
+        <h3>Inspectiepunt</h3>
+        <select id="m-color"><option value="#ef4444">Rood</option><option value="#f59e0b">Oranje</option><option value="#3b82f6">Blauw</option></select>
+        <input type="text" id="m-naam" placeholder="Onderdeel">
+        <select id="m-maatregel"><option value="P2: Afdichten">P2: Afdichten</option><option value="C1: Herstel">C1: Herstel</option><option value="C4: Vervanging">C4: Vervanging</option></select>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <input type="number" id="m-uren" placeholder="Uren">
+            <input type="number" id="m-mat" placeholder="Materiaal €">
+        </div>
+        <textarea id="m-desc" placeholder="Opmerking"></textarea>
+        <button onclick="document.getElementById('ph-in').click()" style="width:100%; padding:10px; background:#666; color:white; border:none; margin-top:5px;">📸 FOTO'S</button>
+        <input type="file" id="ph-in" multiple accept="image/*" style="display:none" onchange="addPhotos(event)">
+        <div id="ph-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:10px;"></div>
+        <button onclick="saveLoc()" style="width:100%; padding:15px; background:var(--rust); color:white; border:none; border-radius:8px; margin-top:10px;">OPSLAAN</button>
+        <button onclick="deleteLoc()" style="color:red; background:none; border:none; width:100%; margin-top:10px; cursor:pointer;">Verwijderen</button>
+    </div>
 </div>
 
 <div id="report-overlay">
@@ -74,38 +121,31 @@
     <div id="report-content"></div>
 </div>
 
-<div class="modal-bg" id="loc-modal"><div class="modal"><h3>Punt details</h3><input type="text" id="m-naam" placeholder="Onderdeel"><textarea id="m-desc" placeholder="Opmerking"></textarea><button onclick="saveLoc()" style="width:100%; padding:15px; background:var(--rust); color:white; border:none; border-radius:8px; margin-top:10px;">OPSLAAN</button></div></div>
-
 <script>
-// PDF LOGIC REPAIRED
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-let sheets = [], activeIdx = -1, scale = 1;
+let sheets = [], activeIdx = -1, mode = 'mark', scale = 1;
+let logos = { our: null, client: null };
+let curPh = [], curId = null, curX = 0, curY = 0;
+
 const mCvs = document.getElementById('main-canvas'), oCvs = document.getElementById('overlay-canvas');
 const mCtx = mCvs.getContext('2d'), oCtx = oCvs.getContext('2d');
 
+function openM(id) { document.getElementById(id).classList.add('open'); }
+function closeM(id) { document.getElementById(id).classList.remove('open'); }
+
 async function handleFile(e) {
     const file = e.target.files[0]; if(!file) return;
-    
-    try {
-        if(file.type === 'application/pdf') {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-            const page = await pdf.getPage(1);
-            const viewport = page.getViewport({scale: 2.0});
-            
-            const tempCvs = document.createElement('canvas');
-            tempCvs.width = viewport.width; tempCvs.height = viewport.height;
-            await page.render({canvasContext: tempCvs.getContext('2d'), viewport: viewport}).promise;
-            
-            addSheet(file.name.split('.')[0], tempCvs.toDataURL('image/jpeg', 0.8));
-        } else {
-            const reader = new FileReader();
-            reader.onload = (ev) => addSheet(file.name.split('.')[0], ev.target.result);
-            reader.readAsDataURL(file);
-        }
-    } catch (err) {
-        alert("Fout bij laden PDF: " + err.message);
+    if(file.type === 'application/pdf') {
+        const ab = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data: ab}).promise;
+        const page = await pdf.getPage(1);
+        const vp = page.getViewport({scale: 2.0});
+        const tCvs = document.createElement('canvas'); tCvs.width = vp.width; tCvs.height = vp.height;
+        await page.render({canvasContext: tCvs.getContext('2d'), viewport: vp}).promise;
+        addSheet(file.name.split('.')[0], tCvs.toDataURL('image/jpeg', 0.8));
+    } else {
+        const r = new FileReader(); r.onload=(ev)=>addSheet(file.name.split('.')[0], ev.target.result); r.readAsDataURL(file);
     }
 }
 
@@ -115,67 +155,92 @@ function addSheet(name, data) {
 }
 
 function switchSheet(idx) {
-    activeIdx = idx; 
-    const img = new Image();
+    activeIdx = idx; const img = new Image();
     img.onload = () => {
         mCvs.width = oCvs.width = img.width; mCvs.height = oCvs.height = img.height;
-        mCtx.drawImage(img, 0, 0);
-        updateTabs(); redraw();
-        // Auto-zoom naar schermbreedte
+        mCtx.drawImage(img, 0, 0); updateTabs(); renderList(); redraw();
         scale = (document.querySelector('.viewport').clientWidth - 60) / img.width;
         document.getElementById('canvas-wrap').style.transform = `scale(${scale})`;
-    }; 
-    img.src = sheets[idx].imgData;
+    }; img.src = sheets[idx].imgData;
 }
 
 function updateTabs() {
-    const bar = document.getElementById('sheet-tabs');
-    const addBtn = bar.querySelector('button');
+    const bar = document.getElementById('sheet-tabs'); const addBtn = bar.querySelector('button');
     bar.innerHTML = ''; bar.appendChild(addBtn);
     sheets.forEach((s, i) => {
-        const btn = document.createElement('button');
-        btn.className = `sheet-tab ${i===activeIdx?'active':''}`;
-        btn.innerHTML = s.name;
-        btn.onclick = () => switchSheet(i);
+        const btn = document.createElement('div'); btn.className = `sheet-tab ${i===activeIdx?'active':''}`;
+        btn.innerHTML = `<span onclick="switchSheet(${i})">${s.name}</span><button class="rename-btn" onclick="renameSheet(${i})">✎</button>`;
         bar.appendChild(btn);
     });
 }
 
-// MARKING LOGIC
+function renameSheet(i) { const n = prompt("Nieuwe naam:", sheets[i].name); if(n){sheets[i].name=n; updateTabs();} }
+
 oCvs.onclick = (e) => {
-    if(activeIdx === -1) return;
+    if(activeIdx === -1 || mode === 'drag') return;
     const r = oCvs.getBoundingClientRect();
     const x = (e.clientX - r.left) / scale;
     const y = (e.clientY - r.top) / scale;
-    
     const hit = sheets[activeIdx].locs.find(l => Math.hypot(l.x - x, l.y - y) < 20/scale);
-    if(hit) { /* edit logic */ } 
-    else {
-        sheets[activeIdx].locs.push({id: Date.now(), x, y, naam: "Punt "+(sheets[activeIdx].locs.length+1), desc: "", color: "#ef4444", fotos: []});
-        redraw();
-    }
+    if(hit) openLoc(hit); else openLoc(null, x, y);
 };
+
+function openLoc(l, x, y) {
+    curId = l?l.id:null; curX=l?l.x:x; curY=l?l.y:y; curPh=l?[...l.fotos]:[];
+    document.getElementById('m-naam').value = l?l.naam:'';
+    document.getElementById('m-desc').value = l?l.desc:'';
+    document.getElementById('m-uren').value = l?l.uren:0;
+    document.getElementById('m-mat').value = l?l.mat:0;
+    renderPh(); openM('loc-modal');
+}
+
+function saveLoc() {
+    const d = { id: curId||Date.now(), x: curX, y: curY, naam: document.getElementById('m-naam').value, maatregel: document.getElementById('m-maatregel').value, desc: document.getElementById('m-desc').value, uren: parseFloat(document.getElementById('m-uren').value)||0, mat: parseFloat(document.getElementById('m-mat').value)||0, color: document.getElementById('m-color').value, fotos: [...curPh] };
+    if(curId) sheets[activeIdx].locs = sheets[activeIdx].locs.map(l => l.id === curId ? d : l);
+    else sheets[activeIdx].locs.push(d);
+    closeM('loc-modal'); redraw(); renderList();
+}
 
 function redraw() {
     oCtx.clearRect(0,0,oCvs.width,oCvs.height);
-    if(activeIdx === -1) return;
-    sheets[activeIdx].locs.forEach((l, i) => {
-        oCtx.beginPath(); oCtx.arc(l.x, l.y, 18/scale, 0, Math.PI*2);
-        oCtx.fillStyle = l.color; oCtx.fill();
-        oCtx.fillStyle = "white"; oCtx.font = `bold ${14/scale}px Arial`;
-        oCtx.textAlign = "center"; oCtx.fillText(i+1, l.x, l.y+(5/scale));
+    if(activeIdx!==-1) sheets[activeIdx].locs.forEach((l, i) => {
+        oCtx.beginPath(); oCtx.arc(l.x, l.y, 18/scale, 0, Math.PI*2); oCtx.fillStyle = l.color; oCtx.fill();
+        oCtx.fillStyle="white"; oCtx.font=`bold ${14/scale}px Arial`; oCtx.textAlign="center"; oCtx.fillText(i+1, l.x, l.y+(5/scale));
     });
 }
 
-// REPORT GENERATOR V15.1
+function renderList() {
+    const list = document.getElementById('loc-list'); list.innerHTML = '';
+    if(activeIdx!==-1) sheets[activeIdx].locs.forEach((l, i) => {
+        list.innerHTML += `<div class="loc-row" onclick="openLocById(${l.id})"><b>${i+1}. ${l.naam}</b></div>`;
+    });
+}
+function openLocById(id) { openLoc(sheets[activeIdx].locs.find(l => l.id === id)); }
+function changeZoom(f) { scale *= f; document.getElementById('canvas-wrap').style.transform = `scale(${scale})`; redraw(); }
+function setMode(m) { mode = m; document.getElementById('m-mark').className = m==='mark'?'btn-round active':'btn-round'; document.getElementById('m-drag').className = m==='drag'?'btn-round active':'btn-round'; }
+function addPhotos(e) { Array.from(e.target.files).forEach(f => { const r = new FileReader(); r.onload=(ev)=>{curPh.push(ev.target.result); renderPh();}; r.readAsDataURL(f); }); }
+function renderPh() { document.getElementById('ph-grid').innerHTML = curPh.map(p=>`<img src="${p}" style="width:100%;aspect-ratio:1;object-fit:cover;">`).join(''); }
+function readLogo(i, t) { const r = new FileReader(); r.onload=(e)=>logos[t]=e.target.result; r.readAsDataURL(i.files[0]); }
+function deleteLoc() { sheets[activeIdx].locs = sheets[activeIdx].locs.filter(l => l.id !== curId); closeM('loc-modal'); redraw(); renderList(); }
+
 async function generateReport() {
     const cont = document.getElementById('report-content');
     document.getElementById('report-overlay').style.display = 'block';
+    const showCalc = document.getElementById('p-calc').checked;
     
     let html = `
     <div class="a4-page">
-        <h1 style="font-size:36pt; text-align:center; margin-top:50mm;">INSPECTIERAPPORT</h1>
-        <p style="text-align:center; font-size:18pt; margin-top:10mm;">Project: Inspectie Houtrot</p>
+        <div style="display:flex; justify-content:space-between;">
+            ${logos.our ? `<img src="${logos.our}" style="max-height:60px;">` : '<div></div>'}
+            ${logos.client ? `<img src="${logos.client}" style="max-height:60px;">` : '<div></div>'}
+        </div>
+        <h1 style="text-align:center; margin-top:50mm;">${document.getElementById('p-title').value}</h1>
+        <h2 style="text-align:center; color:var(--rust);">${document.getElementById('p-name').value}</h2>
+        <div style="margin-top:40mm; border-top:1px solid #000; padding-top:10mm;">
+            <p><b>Klant:</b> ${document.getElementById('p-client').value}</p>
+            <p><b>Inspecteur:</b> ${document.getElementById('p-inspector').value}</p>
+            <p><b>Datum:</b> ${document.getElementById('p-date').value}</p>
+        </div>
     </div>`;
 
     for(let s of sheets) {
@@ -191,11 +256,18 @@ async function generateReport() {
             }; img.src = s.imgData;
         });
 
-        html += `
-        <div class="a4-page">
-            <h2 style="background:#111; color:white; padding:10px;">Gevel: ${s.name}</h2>
-            <img src="${screenshot}" style="width:100%; max-height:150mm; object-fit:contain; border:1px solid #ccc; margin-top:10px;">
-        </div>`;
+        html += `<div class="a4-page"><h2>Gevel: ${s.name}</h2><img src="${screenshot}" style="width:100%; max-height:120mm; object-fit:contain; border:1px solid #ccc; margin:10px 0;">`;
+        let counter = 0;
+        for(let l of s.locs) {
+            counter++; if(counter > 2) { html += `</div><div class="a4-page"><h2>Vervolg: ${s.name}</h2>`; counter = 1; }
+            html += `<div style="border:1px solid #ddd; border-left:5mm solid ${l.color}; padding:15px; margin-bottom:10px;">
+                <h3>${s.locs.indexOf(l)+1}. ${l.naam}</h3>
+                <p><b>Maatregel:</b> ${l.maatregel} ${showCalc?`(${l.uren}u - €${l.mat})`:''}</p>
+                <p><b>Opmerking:</b> ${l.desc || '-'}</p>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:5px;">${l.fotos.map(f=>`<img src="${f}" style="width:100%; height:120px; object-fit:cover;">`).join('')}</div>
+            </div>`;
+        }
+        html += `</div>`;
     }
     cont.innerHTML = html;
 }
